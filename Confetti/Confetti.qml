@@ -81,12 +81,6 @@ QtObject {
 
     function noop() {}
 
-    // create a promise if it exists, otherwise, just
-    // call the function directly
-    function promise(func) {
-      return new Promise(func)
-    }
-
     // Not implemented
     readonly property var bitmapMapper: {
         return {
@@ -171,7 +165,7 @@ QtObject {
 
           var id = Math.random().toString(36).slice(2);
 
-          prom = promise(function (resolve) {
+          prom = new Promise(function (resolve) {
             function workerDone(msg) {
               if (msg.data.callback !== id) {
                 return;
@@ -516,7 +510,7 @@ QtObject {
       var context = canvas.getContext('2d');
       var destroy;
 
-      var prom = promise(function (resolve) {
+      var prom = new Promise(function (resolve) {
         function onDone() {
           destroy = null;
 
@@ -643,7 +637,7 @@ QtObject {
         var zIndex = prop(options, 'zIndex', Number);
 
         if (disableForReducedMotion && preferLessMotion) {
-          return promise(function (resolve) {
+          return new Promise(function (resolve) {
             resolve();
           });
         }
