@@ -79,8 +79,6 @@ QtObject {
     //   return true;
     // }
 
-    function noop() {}
-
     // Not implemented
     readonly property var bitmapMapper: {
         return {
