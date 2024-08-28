@@ -390,6 +390,86 @@ QtObject {
       };
     }
 
+    function drawFettiPath(context, fetti, x1, y1, x2, y2) {
+      context.fill(transformPath2D(
+        fetti.shape.path,
+        fetti.shape.matrix,
+        fetti.x,
+        fetti.y,
+        Math.abs(x2 - x1) * 0.1,
+        Math.abs(y2 - y1) * 0.1,
+        Math.PI / 10 * fetti.wobble
+      ));
+    }
+
+    function drawFettiBitmap(context, fetti, x1, y1, x2, y2) {
+      var rotation = Math.PI / 10 * fetti.wobble;
+      var scaleX = Math.abs(x2 - x1) * 0.1;
+      var scaleY = Math.abs(y2 - y1) * 0.1;
+      var width = fetti.shape.bitmap.width * fetti.scalar;
+      var height = fetti.shape.bitmap.height * fetti.scalar;
+
+      var matrix = new DOMMatrix([
+        Math.cos(rotation) * scaleX,
+        Math.sin(rotation) * scaleX,
+        -Math.sin(rotation) * scaleY,
+        Math.cos(rotation) * scaleY,
+        fetti.x,
+        fetti.y
+      ]);
+
+      // apply the transform matrix from the confetti shape
+      matrix.multiplySelf(new DOMMatrix(fetti.shape.matrix));
+
+      var pattern = context.createPattern(bitmapMapper.transform(fetti.shape.bitmap), 'no-repeat');
+      pattern.setTransform(matrix);
+
+      context.globalAlpha = (1 - progress);
+      context.fillStyle = pattern;
+      context.fillRect(
+        fetti.x - (width / 2),
+        fetti.y - (height / 2),
+        width,
+        height
+      );
+      context.globalAlpha = 1;
+    }
+
+    function drawFettiCircle(context, fetti, x1, y1, x2, y2) {
+      context.ellipse ?
+        context.ellipse(fetti.x, fetti.y, Math.abs(x2 - x1) * fetti.ovalScalar, Math.abs(y2 - y1) * fetti.ovalScalar, Math.PI / 10 * fetti.wobble, 0, 2 * Math.PI) :
+        ellipse(context, fetti.x, fetti.y, Math.abs(x2 - x1) * fetti.ovalScalar, Math.abs(y2 - y1) * fetti.ovalScalar, Math.PI / 10 * fetti.wobble, 0, 2 * Math.PI);
+    }
+
+    function drawFettiStar(context, fetti, x1, y1, x2, y2) {
+      var rot = Math.PI / 2 * 3;
+      var innerRadius = 4 * fetti.scalar;
+      var outerRadius = 8 * fetti.scalar;
+      var x = fetti.x;
+      var y = fetti.y;
+      var spikes = 5;
+      var step = Math.PI / spikes;
+
+      while (spikes--) {
+        x = fetti.x + Math.cos(rot) * outerRadius;
+        y = fetti.y + Math.sin(rot) * outerRadius;
+        context.lineTo(x, y);
+        rot += step;
+
+        x = fetti.x + Math.cos(rot) * innerRadius;
+        y = fetti.y + Math.sin(rot) * innerRadius;
+        context.lineTo(x, y);
+        rot += step;
+      }
+    }
+
+    function drawFettiSquare(context, fetti, x1, y1, x2, y2) {
+      context.moveTo(Math.floor(fetti.x), Math.floor(fetti.y));
+      context.lineTo(Math.floor(fetti.wobbleX), Math.floor(y1));
+      context.lineTo(Math.floor(x2), Math.floor(y2));
+      context.lineTo(Math.floor(x1), Math.floor(fetti.wobbleY));
+    }
+
     function drawFetti(context, fetti) {
       var progress = (fetti.tick++) / fetti.totalTicks;
 
@@ -403,75 +483,17 @@ QtObject {
       context.beginPath();
 
       if (canUsePaths && fetti.shape.type === 'path' && typeof fetti.shape.path === 'string' && Array.isArray(fetti.shape.matrix)) {
-        context.fill(transformPath2D(
-          fetti.shape.path,
-          fetti.shape.matrix,
-          fetti.x,
-          fetti.y,
-          Math.abs(x2 - x1) * 0.1,
-          Math.abs(y2 - y1) * 0.1,
-          Math.PI / 10 * fetti.wobble
-        ));
+        root.drawFettiPath(context, fetti, x1, y1, x2, y2);
       } else if (fetti.shape.type === 'bitmap') {
-        var rotation = Math.PI / 10 * fetti.wobble;
-        var scaleX = Math.abs(x2 - x1) * 0.1;
-        var scaleY = Math.abs(y2 - y1) * 0.1;
-        var width = fetti.shape.bitmap.width * fetti.scalar;
-        var height = fetti.shape.bitmap.height * fetti.scalar;
-
-        var matrix = new DOMMatrix([
-          Math.cos(rotation) * scaleX,
-          Math.sin(rotation) * scaleX,
-          -Math.sin(rotation) * scaleY,
-          Math.cos(rotation) * scaleY,
-          fetti.x,
-          fetti.y
-        ]);
-
-        // apply the transform matrix from the confetti shape
-        matrix.multiplySelf(new DOMMatrix(fetti.shape.matrix));
-
-        var pattern = context.createPattern(bitmapMapper.transform(fetti.shape.bitmap), 'no-repeat');
-        pattern.setTransform(matrix);
-
-        context.globalAlpha = (1 - progress);
-        context.fillStyle = pattern;
-        context.fillRect(
-          fetti.x - (width / 2),
-          fetti.y - (height / 2),
-          width,
-          height
-        );
-        context.globalAlpha = 1;
+        root.drawFettiBitmap(context, fetti, x1, y1, x2, y2);
       } else if (fetti.shape === 'circle') {
-        context.ellipse ?
-          context.ellipse(fetti.x, fetti.y, Math.abs(x2 - x1) * fetti.ovalScalar, Math.abs(y2 - y1) * fetti.ovalScalar, Math.PI / 10 * fetti.wobble, 0, 2 * Math.PI) :
-          ellipse(context, fetti.x, fetti.y, Math.abs(x2 - x1) * fetti.ovalScalar, Math.abs(y2 - y1) * fetti.ovalScalar, Math.PI / 10 * fetti.wobble, 0, 2 * Math.PI);
+        root.drawFettiCircle(context, fetti, x1, y1, x2, y2);
       } else if (fetti.shape === 'star') {
-        var rot = Math.PI / 2 * 3;
-        var innerRadius = 4 * fetti.scalar;
-        var outerRadius = 8 * fetti.scalar;
-        var x = fetti.x;
-        var y = fetti.y;
-        var spikes = 5;
-        var step = Math.PI / spikes;
-
-        while (spikes--) {
-          x = fetti.x + Math.cos(rot) * outerRadius;
-          y = fetti.y + Math.sin(rot) * outerRadius;
-          context.lineTo(x, y);
-          rot += step;
-
-          x = fetti.x + Math.cos(rot) * innerRadius;
-          y = fetti.y + Math.sin(rot) * innerRadius;
-          context.lineTo(x, y);
-          rot += step;
-        }
+        root.drawFettiStar(context, fetti, x1, y1, x2, y2);
+      } else if (fetti.shape === 'square'){
+        root.drawFettiSquare(context, fetti, x1, y1, x2, y2);
       } else {
-        context.moveTo(Math.floor(fetti.x), Math.floor(fetti.y));
-        context.lineTo(Math.floor(fetti.wobbleX), Math.floor(y1));
-        context.lineTo(Math.floor(x2), Math.floor(y2));
-        context.lineTo(Math.floor(x1), Math.floor(fetti.wobbleY));
+        console.assert(false, "Unkown fetti shape '%0'".arg(fetti.shape))
       }
 
       context.closePath();
