@@ -751,15 +751,6 @@ QtObject {
       return fire;
     }
 
-    // Make default export lazy to defer worker creation until called.
-    property var defaultFire: null
-    function getDefaultFire() {
-      if (!defaultFire) {
-        defaultFire = confettiCannon(null, { useWorker: true, resize: true });
-      }
-      return defaultFire;
-    }
-
     function transformPath2D(pathString, pathMatrix, x, y, scaleX, scaleY, rotation) {
       var path2d = new Path2D(pathString);
 
@@ -897,51 +888,4 @@ QtObject {
         const globalOptions = { resize: true }
         root.confetti = root.confettiCannon(root.canvas, globalOptions)
     }
-
-    // module.exports = function() {
-    //   return getDefaultFire().apply(this, arguments);
-    // };
-    // module.exports.reset = function() {
-    //   getDefaultFire().reset();
-    // };
-    // module.exports.create = confettiCannon;
-    // module.exports.shapeFromPath = shapeFromPath;
-    // module.exports.shapeFromText = shapeFromText;
 }
-
-/*
-(function main(global, module, isWorker, workerSize) {
-
-  var canDrawBitmap = (function () {
-    // this mostly supports ssr
-    if (!global.OffscreenCanvas) {
-      return false;
-    }
-
-    var canvas = new OffscreenCanvas(1, 1);
-    var ctx = canvas.getContext('2d');
-    ctx.fillRect(0, 0, 1, 1);
-    var bitmap = canvas.transferToImageBitmap();
-
-    try {
-      ctx.createPattern(bitmap, 'no-repeat');
-    } catch (e) {
-      return false;
-    }
-
-    return true;
-  })();
-
-
-}((function () {
-  if (typeof window !== 'undefined') {
-    return window;
-  }
-
-  if (typeof self !== 'undefined') {
-    return self;
-  }
-
-  return this || {};
-})(), module, false));
-*/
