@@ -390,30 +390,7 @@ QtObject {
       };
     }
 
-    function updateFetti(context, fetti) {
-      fetti.x += Math.cos(fetti.angle2D) * fetti.velocity + fetti.drift;
-      fetti.y += Math.sin(fetti.angle2D) * fetti.velocity + fetti.gravity;
-      fetti.velocity *= fetti.decay;
-
-      if (fetti.flat) {
-        fetti.wobble = 0;
-        fetti.wobbleX = fetti.x + (10 * fetti.scalar);
-        fetti.wobbleY = fetti.y + (10 * fetti.scalar);
-
-        fetti.tiltSin = 0;
-        fetti.tiltCos = 0;
-        fetti.random = 1;
-      } else {
-        fetti.wobble += fetti.wobbleSpeed;
-        fetti.wobbleX = fetti.x + ((10 * fetti.scalar) * Math.cos(fetti.wobble));
-        fetti.wobbleY = fetti.y + ((10 * fetti.scalar) * Math.sin(fetti.wobble));
-
-        fetti.tiltAngle += 0.1;
-        fetti.tiltSin = Math.sin(fetti.tiltAngle);
-        fetti.tiltCos = Math.cos(fetti.tiltAngle);
-        fetti.random = Math.random() + 2;
-      }
-
+    function drawFetti(context, fetti) {
       var progress = (fetti.tick++) / fetti.totalTicks;
 
       var x1 = fetti.x + (fetti.random * fetti.tiltCos);
@@ -499,6 +476,37 @@ QtObject {
 
       context.closePath();
       context.fill();
+    }
+
+    // Performs a full redraw of the confetti scene.
+    function drawScene(context, animatingFettis, size) {
+      context.clearRect(0, 0, size.width, size.height);
+      animatingFettis.forEach((fetti) => drawFetti(context, fetti));
+    }
+
+    function updateFetti(fetti) {
+      fetti.x += Math.cos(fetti.angle2D) * fetti.velocity + fetti.drift;
+      fetti.y += Math.sin(fetti.angle2D) * fetti.velocity + fetti.gravity;
+      fetti.velocity *= fetti.decay;
+
+      if (fetti.flat) {
+        fetti.wobble = 0;
+        fetti.wobbleX = fetti.x + (10 * fetti.scalar);
+        fetti.wobbleY = fetti.y + (10 * fetti.scalar);
+
+        fetti.tiltSin = 0;
+        fetti.tiltCos = 0;
+        fetti.random = 1;
+      } else {
+        fetti.wobble += fetti.wobbleSpeed;
+        fetti.wobbleX = fetti.x + ((10 * fetti.scalar) * Math.cos(fetti.wobble));
+        fetti.wobbleY = fetti.y + ((10 * fetti.scalar) * Math.sin(fetti.wobble));
+
+        fetti.tiltAngle += 0.1;
+        fetti.tiltSin = Math.sin(fetti.tiltAngle);
+        fetti.tiltCos = Math.cos(fetti.tiltAngle);
+        fetti.random = Math.random() + 2;
+      }
 
       return fetti.tick < fetti.totalTicks;
     }
@@ -531,11 +539,11 @@ QtObject {
             size.height = canvas.height;
           }
 
-          context.clearRect(0, 0, size.width, size.height);
-
           animatingFettis = animatingFettis.filter(function (fetti) {
-            return updateFetti(context, fetti);
+            return updateFetti(fetti);
           });
+
+          drawScene(context, animatingFettis, size)
 
           if (animatingFettis.length) {
             frameAnimation.frame(update);
