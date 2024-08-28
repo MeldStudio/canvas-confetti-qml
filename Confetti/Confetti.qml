@@ -37,9 +37,6 @@ QtObject {
 
     required property Canvas canvas
 
-    // todo(ollie-dawes): Remove this.
-    property var global: null
-
     property bool isWorker: false
 
     property var workerSize: undefined
