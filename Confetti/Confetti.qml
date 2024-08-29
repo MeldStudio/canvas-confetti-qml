@@ -485,16 +485,7 @@ QtObject {
       context.lineTo(Math.floor(x1), Math.floor(fetti.wobbleY));
     }
 
-    function drawFetti(context, fetti) {
-      var progress = (fetti.tick++) / fetti.totalTicks;
-
-      var x1 = fetti.x + (fetti.random * fetti.tiltCos);
-      var y1 = fetti.y + (fetti.random * fetti.tiltSin);
-      var x2 = fetti.wobbleX + (fetti.random * fetti.tiltCos);
-      var y2 = fetti.wobbleY + (fetti.random * fetti.tiltSin);
-
-      context.fillStyle = 'rgba(' + fetti.color.r + ', ' + fetti.color.g + ', ' + fetti.color.b + ', ' + (1 - progress) + ')';
-
+    function drawFettiShapeInner(context, fetti, x1, y1, x2, y2) {
       context.beginPath();
 
       if (canUsePaths && fetti.shape.type === 'path' && typeof fetti.shape.path === 'string' && Array.isArray(fetti.shape.matrix)) {
@@ -512,7 +503,23 @@ QtObject {
       }
 
       context.closePath();
+    }
+
+    function drawFettiShape(context, fetti, progress, x1, y1, x2, y2) {
+      context.fillStyle = 'rgba(' + fetti.color.r + ', ' + fetti.color.g + ', ' + fetti.color.b + ', ' + (1 - progress) + ')';
+      root.drawFettiShapeInner(context, fetti, x1, y1, x2, y2)
       context.fill();
+    }
+
+    function drawFetti(context, fetti) {
+      var progress = (fetti.tick++) / fetti.totalTicks;
+
+      var x1 = fetti.x + (fetti.random * fetti.tiltCos);
+      var y1 = fetti.y + (fetti.random * fetti.tiltSin);
+      var x2 = fetti.wobbleX + (fetti.random * fetti.tiltCos);
+      var y2 = fetti.wobbleY + (fetti.random * fetti.tiltSin);
+
+      root.drawFettiShape(context, fetti, progress, x1, y1, x2, y2);
     }
 
     // Performs a full redraw of the confetti scene.
