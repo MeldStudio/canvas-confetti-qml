@@ -118,22 +118,37 @@ QtObject {
     })(canDrawBitmap, new Map());
     */
 
-    readonly property FrameAnimation _frameAnimation: FrameAnimation {
-        id: frameAnimation
+    readonly property var raf: (function () {
+      var TIME = Math.floor(1000 / 60);
+      var frame, cancel;
+      var frames = {};
+      var lastFrameTime = 0;
 
-        property var framecallback: null
-        onTriggered: {
-            if (typeof frameAnimation.framecallback === 'function') {
-                frameAnimation.framecallback()
-                root.canvas.requestPaint()
-            }
-        }
+      const canvas = root.canvas
+      frame = function (cb) {
+        var id = Math.random();
 
-        function frame(cb) {
-            frameAnimation.framecallback = cb
-            frameAnimation.start()
+        frames[id] = canvas.requestAnimationFrame(function onFrame(time) {
+          if (lastFrameTime === time || lastFrameTime + TIME - 1 < time) {
+            lastFrameTime = time;
+            delete frames[id];
+
+            cb();
+          } else {
+            frames[id] = canvas.requestAnimationFrame(onFrame);
+          }
+        });
+
+        return id;
+      };
+      cancel = function (id) {
+        if (frames[id]) {
+          canvas.cancelRequestAnimationFrame(frames[id]);
         }
-    }
+      };
+
+      return { frame: frame, cancel: cancel };
+    }());
 
     function getWorker() {
         // not implemented
@@ -536,11 +551,12 @@ QtObject {
     function animate(canvas, fettis, resizer, size, done) {
       var animatingFettis = fettis.slice();
       var context = canvas.getContext('2d');
+      var animationFrame;
       var destroy;
 
       var prom = new Promise(function (resolve) {
         function onDone() {
-          destroy = null;
+          animationFrame = destroy = null;
 
           context.clearRect(0, 0, size.width, size.height);
           bitmapMapper.clear();
@@ -568,13 +584,13 @@ QtObject {
           drawScene(context, animatingFettis, size)
 
           if (animatingFettis.length) {
-            frameAnimation.frame(update);
+            animationFrame = raf.frame(update);
           } else {
             onDone();
           }
         }
 
-        frameAnimation.frame(update);
+        animationFrame = raf.frame(update);
         destroy = onDone;
       });
 
@@ -587,7 +603,9 @@ QtObject {
         canvas: canvas,
         promise: prom,
         reset: function () {
-          frameAnimation.reset();
+          if (animationFrame) {
+            raf.cancel(animationFrame);
+          }
 
           if (destroy) {
             destroy();
