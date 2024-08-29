@@ -41,66 +41,85 @@ QtQ.QtObject {
     // QML doesn't support DOMMatrix.
     readonly property bool canUsePaths: typeof Path2D === 'function' && typeof DOMMatrix === 'function'
 
-    // Not implemented
-    readonly property bool canDrawBitmap: false
-    // readonly property bool canDrawBitmap: {
-    //   // this mostly supports ssr
-    //   if (!root.global.OffscreenCanvas) {
-    //     return false;
-    //   }
-    //
-    //   var canvas = new OffscreenCanvas(1, 1);
-    //   var ctx = canvas.getContext('2d');
-    //   ctx.fillRect(0, 0, 1, 1);
-    //   var bitmap = canvas.transferToImageBitmap();
-    //
-    //   try {
-    //     ctx.createPattern(bitmap, 'no-repeat');
-    //   } catch (e) {
-    //     return false;
-    //   }
-    //
-    //   return true;
-    // }
+    component ItemGrabResultShape: QtQ.QtObject {
+      // We must hold onto ItemGrabResult reference otherwise the image will
+      // become invalid. Unfortunatly this is impossible due to:
+      // https://bugreports.qt.io/browse/QTBUG-128483
+      //
+      // So as a workaroud we also hold onto an internal Image item that uses
+      // the ItemGrabResult url to prevent the internal pixmap cache from being
+      // released.
+      //
+      // Once the above bug is fixed we can hold onto just the "itemGrabResult".
+      required property QtQ.QtObject itemGrabResult
+      readonly property QtQ.Image _image: QtQ.Image { source: url}
+      required property url url
 
-    // Not implemented
-    readonly property var bitmapMapper: {
-        return {
-            transform: (bitmap) => {},
-            clear: () => {},
-        }
+      // The size to render the provided image.
+      required property size size
+
+      required property QtQ.matrix4x4 matrix
+
+      // Called when the ItemGrabResultShape is finished being loaded by the canvas.
+      required property var onLoadedCallback
+
+      // Called if the canvas fails to load the ItemGrabResultShape's url.
+      required property var onLoadFailedCallback
     }
-    /*
-    var bitmapMapper = (function (skipTransform, map) {
-      // see https://github.com/catdad/canvas-confetti/issues/209
-      // creating canvases is actually pretty expensive, so we should create a
-      // 1:1 map for bitmap:canvas, so that we can animate the confetti in
-      // a performant manner, but also not store them forever so that we don't
-      // have a memory leak
-      return {
-        transform: function(bitmap) {
-          if (skipTransform) {
-            return bitmap;
+    readonly property QtQ.Component _itemGrabResultShapeComponent: QtQ.Component {
+      id: itemGrabResultShapeComponent
+      ItemGrabResultShape {}
+    }
+
+    property list<ItemGrabResultShape> _loadingItemGrabResultShapes: []
+    property list<ItemGrabResultShape> _loadedItemGrabResultShapes: []
+
+    readonly property QtQ.Connections _canvasConnections: QtQ.Connections {
+      target: root.canvas
+      function onImageLoaded() {
+        // Any time the canvas emits it's "imageLoaded" signal check to see if
+        // any of the loading ItemGrabResultShape have finished loading or encountered
+        // an error.
+        const canvas = root.canvas
+        const loadingItemGrabResultShapes = [...root._loadingItemGrabResultShapes]
+        const failedItemGrabResultShapes = []
+        const loadedItemGrabResultShapes = []
+
+        let i = 0
+        while (i < loadingItemGrabResultShapes.length) {
+          const loadingItemGrabResultShape = loadingItemGrabResultShapes[i]
+          if (canvas.isImageError(loadingItemGrabResultShape.itemGrabResult.url)) {
+            // If the image failed to load then remove from the loading list and
+            // add to the failed list.
+            failedItemGrabResultShapes.push(loadingItemGrabResultShape)
+            loadingItemGrabResultShapes.splice(i, 1)
+          } else if (canvas.isImageLoaded(loadingItemGrabResultShape.itemGrabResult.url)) {
+            // If the image loaded successfully then remove it from the loading
+            // list and add to the loaded list.
+            loadedItemGrabResultShapes.push(loadingItemGrabResultShape)
+            loadingItemGrabResultShapes.splice(i, 1)
+          } else {
+            // If the image is still loading then check the next image.
+            i++
           }
-
-          if (map.has(bitmap)) {
-            return map.get(bitmap);
-          }
-
-          var canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-          var ctx = canvas.getContext('2d');
-          ctx.drawImage(bitmap, 0, 0);
-
-          map.set(bitmap, canvas);
-
-          return canvas;
-        },
-        clear: function () {
-          map.clear();
         }
-      };
-    })(canDrawBitmap, new Map());
-    */
+
+        if (failedItemGrabResultShapes.length || loadedItemGrabResultShapes.length) {
+          root._loadingItemGrabResultShapes = loadingItemGrabResultShapes
+
+          for (let failedItemGrabResultShape of failedItemGrabResultShapes) {
+            failedItemGrabResultShape.onLoadFailedCallback(failedItemGrabResultShape.itemGrabResult)
+            failedItemGrabResultShape.destroy()
+          }
+
+          for (let loadedItemGrabResultShape of loadedItemGrabResultShapes) {
+            root._loadedItemGrabResultShapes.push(loadedItemGrabResultShape)
+            loadedItemGrabResultShape.onLoadedCallback(loadedItemGrabResultShape)
+          }
+        }
+        root.printLoadedItemGrabResults()
+      }
+    }
 
     readonly property var raf: (function () {
       var TIME = Math.floor(1000 / 60);
@@ -209,6 +228,22 @@ QtQ.QtObject {
       };
     }
 
+    // DOMMatrix style 6-element array values to Qt matrix4x4.
+    function _DOMMatrixtoMatrix4x4(a: real, b: real, c: real, d: real, e: real, f: real) : QtQ.matrix4x4 {
+      return Qt.matrix4x4(
+        a, b, 0, 0,
+        c, d, 0, 0,
+        0, 0, 1, 0,
+        e, f, 0, 1
+      )
+    }
+
+    // Qt matrix4x4 to DOMMatrix style 6-element array.
+    function _Matrix4x4ToDOMMatrix(m: QtQ.matrix4x4) : var {
+
+      return [m.m11, m.m12, m.m21, m.m22, m.m41, m.m42]
+    }
+
     function getOrigin(options) {
       var origin = prop(options, 'origin', Object);
       origin.x = prop(origin, 'x', Number);
@@ -259,36 +294,44 @@ QtQ.QtObject {
       ));
     }
 
-    function drawFettiBitmap(context, fetti, x1, y1, x2, y2) {
+    function drawFettiItemGrabResult(context, fetti, progress, x1, y1, x2, y2) {
       var rotation = Math.PI / 10 * fetti.wobble;
       var scaleX = Math.abs(x2 - x1) * 0.1;
       var scaleY = Math.abs(y2 - y1) * 0.1;
-      var width = fetti.shape.bitmap.width * fetti.scalar;
-      var height = fetti.shape.bitmap.height * fetti.scalar;
+      var width = fetti.shape.size.width * fetti.scalar;
+      var height = fetti.shape.size.height * fetti.scalar;
 
-      var matrix = new DOMMatrix([
-        Math.cos(rotation) * scaleX,
-        Math.sin(rotation) * scaleX,
-        -Math.sin(rotation) * scaleY,
-        Math.cos(rotation) * scaleY,
-        fetti.x,
-        fetti.y
-      ]);
-
-      // apply the transform matrix from the confetti shape
-      matrix.multiplySelf(new DOMMatrix(fetti.shape.matrix));
-
-      var pattern = context.createPattern(bitmapMapper.transform(fetti.shape.bitmap), 'no-repeat');
-      pattern.setTransform(matrix);
+      // Nb(ollie-dawes): This is old logic from up stream. QML does not
+      // implement "CanvasPattern.setTransform" so just show the images as flat
+      // images for now.
+      //
+      // var matrix = new DOMMatrix([
+      //   Math.cos(rotation) * scaleX,
+      //   Math.sin(rotation) * scaleX,
+      //   -Math.sin(rotation) * scaleY,
+      //   Math.cos(rotation) * scaleY,
+      //   fetti.x,
+      //   fetti.y
+      // ]);
+      //
+      // // apply the transform matrix from the confetti shape
+      // matrix.multiplySelf(new DOMMatrix(fetti.shape.matrix));
+      //
+      // var pattern = context.createPattern(bitmapMapper.transform(fetti.shape.bitmap), 'no-repeat');
+      // pattern.setTransform(matrix);
+      //
+      // context.globalAlpha = (1 - progress);
+      // context.fillStyle = pattern;
+      // context.fillRect(
+      //   fetti.x - (width / 2),
+      //   fetti.y - (height / 2),
+      //   width,
+      //   height
+      // );
+      // context.globalAlpha = 1;
 
       context.globalAlpha = (1 - progress);
-      context.fillStyle = pattern;
-      context.fillRect(
-        fetti.x - (width / 2),
-        fetti.y - (height / 2),
-        width,
-        height
-      );
+      context.drawImage(fetti.shape.url, fetti.x -(width / 2), fetti.y -(height / 2), width, height)
       context.globalAlpha = 1;
     }
 
@@ -325,13 +368,13 @@ QtQ.QtObject {
       context.lineTo(Math.floor(x1), Math.floor(fetti.wobbleY));
     }
 
-    function drawFettiShapeInner(context, fetti, x1, y1, x2, y2) {
+    function drawFettiShapeInner(context, fetti, progress, x1, y1, x2, y2) {
       context.beginPath();
 
       if (canUsePaths && fetti.shape.type === 'path' && typeof fetti.shape.path === 'string' && Array.isArray(fetti.shape.matrix)) {
         root.drawFettiPath(context, fetti, x1, y1, x2, y2);
-      } else if (fetti.shape.type === 'bitmap') {
-        root.drawFettiBitmap(context, fetti, x1, y1, x2, y2);
+      } else if (fetti.shape instanceof ItemGrabResultShape) {
+        root.drawFettiItemGrabResult(context, fetti, progress, x1, y1, x2, y2);
       } else if (fetti.shape === 'circle') {
         root.drawFettiCircle(context, fetti, x1, y1, x2, y2);
       } else if (fetti.shape === 'star') {
@@ -339,7 +382,7 @@ QtQ.QtObject {
       } else if (fetti.shape === 'square'){
         root.drawFettiSquare(context, fetti, x1, y1, x2, y2);
       } else {
-        console.assert(false, "Unkown fetti shape '%0'".arg(fetti.shape))
+        console.assert(false, "Unknown fetti shape '%0'".arg(fetti.shape))
       }
 
       context.closePath();
@@ -347,7 +390,7 @@ QtQ.QtObject {
 
     function drawFettiShape(context, fetti, progress, x1, y1, x2, y2) {
       context.fillStyle = 'rgba(' + fetti.color.r + ', ' + fetti.color.g + ', ' + fetti.color.b + ', ' + (1 - progress) + ')';
-      root.drawFettiShapeInner(context, fetti, x1, y1, x2, y2)
+      root.drawFettiShapeInner(context, fetti, progress, x1, y1, x2, y2)
       context.fill();
     }
 
@@ -406,7 +449,6 @@ QtQ.QtObject {
           animationFrame = destroy = null;
 
           context.clearRect(0, 0, canvas.width, canvas.height);
-          bitmapMapper.clear();
 
           done();
           resolve();
@@ -616,55 +658,64 @@ QtQ.QtObject {
       };
     }
 
-    function shapeFromText(textData) {
-      var text,
-          scalar = 1,
-          color = '#000000',
-          // see https://nolanlawson.com/2022/04/08/the-struggle-of-using-native-emoji-on-the-web/
-          fontFamily = '"Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", "EmojiOne Color", "Android Emoji", "Twemoji Mozilla", "system emoji", sans-serif';
+    // Provided an "ItemGrabResult" this method will load the image into the
+    // canvas so that it can be rendered and then either call the
+    // "onLoadedCallback" or "onLoadFailedCallback" depending on whether the
+    // image loaded successfully.
+    //
+    // "onLoadedCallback" will return a "ItemGrabResultShape" that can be passed
+    // into the "shapes" array property and unloaded by calling
+    // "unloadItemGrabResultShape".
+    //
+    // "onLoadFailedCallback" will return the original "itemGrabResult" if the
+    // canvas fails to load the image successfully.
+    function loadItemGrabResultAsShape(itemGrabResult: QtQ.QtObject,
+                                       size: QtQ.size,
+                                       onLoadedCallback: var,
+                                       onLoadFailedCallback: var) : void {
+      const scale = 1;
+      const loadingItemGrabResultShape = itemGrabResultShapeComponent.createObject(root, {
+        itemGrabResult: itemGrabResult,
+        url: itemGrabResult.url,
+        size: size,
+        matrix: root._DOMMatrixtoMatrix4x4(scale, 0, 0, scale, -width * scale / 2, -height * scale / 2),
+        onLoadedCallback: onLoadedCallback,
+        onLoadFailedCallback: onLoadFailedCallback,
+      })
+      if (loadingItemGrabResultShape) {
+        const canvas = root.canvas
+        root._loadingItemGrabResultShapes.push(loadingItemGrabResultShape)
+        canvas.loadImage(loadingItemGrabResultShape.itemGrabResult.url)
 
-      if (typeof textData === 'string') {
-        text = textData;
-      } else {
-        text = textData.text;
-        scalar = 'scalar' in textData ? textData.scalar : scalar;
-        fontFamily = 'fontFamily' in textData ? textData.fontFamily : fontFamily;
-        color = 'color' in textData ? textData.color : color;
+        // Canvas.imageLoaded is not emitted if the image was loaded immediantly
+        // so manually call "onImageLoaded" in that case.
+        // See this bug for details:
+        // https://bugreports.qt.io/browse/QTBUG-128480
+        if (canvas.isImageLoaded(loadingItemGrabResultShape.itemGrabResult.url)) {
+          root._canvasConnections.onImageLoaded()
+        }
       }
+    }
 
-      // all other confetti are 10 pixels,
-      // so this pixel size is the de-facto 100% scale confetti
-      var fontSize = 10 * scalar;
-      var font = '' + fontSize + 'px ' + fontFamily;
-
-      var canvas = new OffscreenCanvas(fontSize, fontSize);
-      var ctx = canvas.getContext('2d');
-
-      ctx.font = font;
-      var size = ctx.measureText(text);
-      var width = Math.ceil(size.actualBoundingBoxRight + size.actualBoundingBoxLeft);
-      var height = Math.ceil(size.actualBoundingBoxAscent + size.actualBoundingBoxDescent);
-
-      var padding = 2;
-      var x = size.actualBoundingBoxLeft + padding;
-      var y = size.actualBoundingBoxAscent + padding;
-      width += padding + padding;
-      height += padding + padding;
-
-      canvas = new OffscreenCanvas(width, height);
-      ctx = canvas.getContext('2d');
-      ctx.font = font;
-      ctx.fillStyle = color;
-
-      ctx.fillText(text, x, y);
-
-      var scale = 1 / scalar;
-
-      return {
-        type: 'bitmap',
-        bitmap: canvas.transferToImageBitmap(),
-        matrix: [scale, 0, 0, scale, -width * scale / 2, -height * scale / 2]
-      };
+    // This method will release the "ItemGrabResultShape" reference held
+    // internally for "loadItemGrabResultAsShape" calls that completed
+    // successfully.
+    //
+    // The provided "ItemGrabResultShape" value should only be a
+    // "ItemGrabResultShape" reference that was returned from the
+    // "onLoadedCallback" of "loadItemGrabResultAsShape". Images that are in the
+    // progress of being loaded can not be unloaded.
+    function unloadItemGrabResultShape(itemGrabResultShape: ItemGrabResultShape) {
+        const index = root._loadedItemGrabResultShapes.indexOf(itemGrabResultShape)
+        if (index < 0) {
+            console.warn("Unable to unload itemGrabResultShape shape. Shape not
+                          found, has it already been unloaded?")
+            return
+        }
+        const removedItemGrabResultShapes = root._loadedItemGrabResultShapes.splice(index, 1)
+        for (let removedItemGrabResultShape of removedItemGrabResultShapes) {
+            removedItemGrabResultShape.destroy()
+        }
     }
 
     property var confetti: null
