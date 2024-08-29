@@ -217,15 +217,6 @@ QtQ.QtObject {
       return origin;
     }
 
-    function ellipse(context, x, y, radiusX, radiusY, rotation, startAngle, endAngle, antiClockwise) {
-      context.save();
-      context.translate(x, y);
-      context.rotate(rotation);
-      context.scale(radiusX, radiusY);
-      context.arc(0, 0, 1, startAngle, endAngle, antiClockwise);
-      context.restore();
-    }
-
     function randomPhysics(opts) {
       var radAngle = opts.angle * (Math.PI / 180);
       var radSpread = opts.spread * (Math.PI / 180);
@@ -302,9 +293,7 @@ QtQ.QtObject {
     }
 
     function drawFettiCircle(context, fetti, x1, y1, x2, y2) {
-      context.ellipse ?
-        context.ellipse(fetti.x, fetti.y, Math.abs(x2 - x1) * fetti.ovalScalar, Math.abs(y2 - y1) * fetti.ovalScalar, Math.PI / 10 * fetti.wobble, 0, 2 * Math.PI) :
-        ellipse(context, fetti.x, fetti.y, Math.abs(x2 - x1) * fetti.ovalScalar, Math.abs(y2 - y1) * fetti.ovalScalar, Math.PI / 10 * fetti.wobble, 0, 2 * Math.PI);
+      context.ellipse(fetti.x, fetti.y, Math.abs(x2 - x1) * fetti.ovalScalar, Math.abs(y2 - y1) * fetti.ovalScalar, Math.PI / 10 * fetti.wobble, 0, 2 * Math.PI);
     }
 
     function drawFettiStar(context, fetti, x1, y1, x2, y2) {
