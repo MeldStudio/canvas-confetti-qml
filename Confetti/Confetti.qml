@@ -662,7 +662,7 @@ QtObject {
               angle: angle,
               spread: spread,
               startVelocity: startVelocity,
-              color: colors[temp % colors.length],
+              color: colors[randomInt(0, colors.length)],
               shape: shapes[randomInt(0, shapes.length)],
               ticks: ticks,
               decay: decay,
