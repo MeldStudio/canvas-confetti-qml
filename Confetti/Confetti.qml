@@ -30,12 +30,12 @@
 pragma ComponentBehavior: Bound
 pragma ValueTypeBehavior: Addressable
 
-import QtQuick
+import QtQuick as QtQ
 
-QtObject {
+QtQ.QtObject {
     id: root
 
-    required property Canvas canvas
+    required property QtQ.Canvas canvas
 
     property bool isWorker: false
 
@@ -342,18 +342,6 @@ QtObject {
       return origin;
     }
 
-    function setCanvasWindowSize(canvas) {
-      canvas.width = document.documentElement.clientWidth;
-      canvas.height = document.documentElement.clientHeight;
-    }
-
-    // todo(ollie-dawes): Get rid of this if possible.
-    function setCanvasRectSize(canvas) {
-      // var rect = canvas.getBoundingClientRect();
-      // canvas.width = rect.width;
-      // canvas.height = rect.height;
-    }
-
     function getCanvas(zIndex) {
       var canvas = document.createElement('canvas');
 
@@ -523,7 +511,7 @@ QtObject {
     }
 
     // Performs a full redraw of the confetti scene.
-    function drawScene(context, animatingFettis, size) {
+    function drawScene(context, animatingFettis, size: QtQ.size) {
       context.clearRect(0, 0, size.width, size.height);
       animatingFettis.forEach((fetti) => drawFetti(context, fetti));
     }
@@ -555,7 +543,7 @@ QtObject {
       return fetti.tick < fetti.totalTicks;
     }
 
-    function animate(canvas, fettis, resizer, size, done) {
+    function animate(canvas, fettis, done) {
       var animatingFettis = fettis.slice();
       var context = canvas.getContext('2d');
       var animationFrame;
@@ -565,7 +553,7 @@ QtObject {
         function onDone() {
           animationFrame = destroy = null;
 
-          context.clearRect(0, 0, size.width, size.height);
+          context.clearRect(0, 0, canvas.width, canvas.height);
           bitmapMapper.clear();
 
           done();
@@ -573,22 +561,11 @@ QtObject {
         }
 
         function update() {
-          if (isWorker && !(size.width === workerSize.width && size.height === workerSize.height)) {
-            size.width = canvas.width = workerSize.width;
-            size.height = canvas.height = workerSize.height;
-          }
-
-          if (!size.width && !size.height) {
-            resizer(canvas);
-            size.width = canvas.width;
-            size.height = canvas.height;
-          }
-
           animatingFettis = animatingFettis.filter(function (fetti) {
             return updateFetti(fetti);
           });
 
-          drawScene(context, animatingFettis, size)
+          drawScene(context, animatingFettis, Qt.size(canvas.width, canvas.height))
 
           if (animatingFettis.length) {
             animationFrame = raf.frame(update);
@@ -622,17 +599,14 @@ QtObject {
     }
 
     function confettiCannon(canvas, globalOpts) {
-      var allowResize = !!prop(globalOpts || {}, 'resize');
-      var hasResizeEventRegistered = false;
       var globalDisableForReducedMotion = prop(globalOpts, 'disableForReducedMotion', Boolean);
       var shouldUseWorker = canUseWorker && !!prop(globalOpts || {}, 'useWorker');
       var worker = shouldUseWorker ? getWorker() : null;
-      var resizer = setCanvasRectSize;
       var initialized = (canvas && worker) ? !!canvas.__confetti_initialized : false;
       var preferLessMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion)').matches;
       var animationObj;
 
-      function fireLocal(options, size, done) {
+      function fireLocal(options, done) {
         var particleCount = prop(options, 'particleCount', onlyPositiveInt);
         var angle = prop(options, 'angle', Number);
         var spread = prop(options, 'spread', Number);
@@ -679,7 +653,7 @@ QtObject {
           return animationObj.addFettis(fettis);
         }
 
-        animationObj = animate(canvas, fettis, resizer, size , done);
+        animationObj = animate(canvas, fettis , done);
 
         return animationObj.promise;
       }
@@ -694,16 +668,6 @@ QtObject {
           });
         }
 
-        if (allowResize && !initialized) {
-          // initialize the size of a user-supplied canvas
-          resizer(canvas);
-        }
-
-        var size = {
-          width: canvas.width,
-          height: canvas.height
-        };
-
         if (worker && !initialized) {
           worker.init(canvas);
         }
@@ -714,52 +678,15 @@ QtObject {
           canvas.__confetti_initialized = true;
         }
 
-        function onResize() {
-          if (worker) {
-            // TODO this really shouldn't be immediate, because it is expensive
-            var obj = {
-              getBoundingClientRect: function () {
-                return Qt.rect(0, 0, canvas.width, canvas.height);
-              }
-            };
-
-            resizer(obj);
-
-            worker.postMessage({
-              resize: {
-                width: obj.width,
-                height: obj.height
-              }
-            });
-            return;
-          }
-
-          // don't actually query the size here, since this
-          // can execute frequently and rapidly
-          size.width = size.height = null;
-        }
-
         function done() {
           animationObj = null;
-
-          if (allowResize) {
-            hasResizeEventRegistered = false;
-            canvas.widthChanged.disconnect(onResize);
-            canvas.heightChanged.disconnect(onResize);
-          }
-        }
-
-        if (allowResize && !hasResizeEventRegistered) {
-          hasResizeEventRegistered = true;
-          canvas.widthChanged.connect(onResize);
-          canvas.heightChanged.connect(onResize);
         }
 
         if (worker) {
-          return worker.fire(options, size, done);
+          return worker.fire(options, done);
         }
 
-        return fireLocal(options, size, done);
+        return fireLocal(options, done);
       }
 
       fire.reset = function () {
@@ -908,8 +835,7 @@ QtObject {
     }
 
     property var confetti: null
-    Component.onCompleted: {
-        const globalOptions = { resize: true }
-        root.confetti = root.confettiCannon(root.canvas, globalOptions)
+    QtQ.Component.onCompleted: {
+        root.confetti = root.confettiCannon(root.canvas, {})
     }
 }
