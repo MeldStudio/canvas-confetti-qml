@@ -622,13 +622,12 @@ QtObject {
     }
 
     function confettiCannon(canvas, globalOpts) {
-      var isLibCanvas = !canvas;
       var allowResize = !!prop(globalOpts || {}, 'resize');
       var hasResizeEventRegistered = false;
       var globalDisableForReducedMotion = prop(globalOpts, 'disableForReducedMotion', Boolean);
       var shouldUseWorker = canUseWorker && !!prop(globalOpts || {}, 'useWorker');
       var worker = shouldUseWorker ? getWorker() : null;
-      var resizer = isLibCanvas ? setCanvasWindowSize : setCanvasRectSize;
+      var resizer = setCanvasRectSize;
       var initialized = (canvas && worker) ? !!canvas.__confetti_initialized : false;
       var preferLessMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion)').matches;
       var animationObj;
@@ -695,15 +694,6 @@ QtObject {
           });
         }
 
-        if (isLibCanvas && animationObj) {
-          // use existing canvas from in-progress animation
-          canvas = animationObj.canvas;
-        } else if (isLibCanvas && !canvas) {
-          // create and initialize a new canvas
-          canvas = getCanvas(zIndex);
-          document.body.appendChild(canvas);
-        }
-
         if (allowResize && !initialized) {
           // initialize the size of a user-supplied canvas
           resizer(canvas);
@@ -729,9 +719,7 @@ QtObject {
             // TODO this really shouldn't be immediate, because it is expensive
             var obj = {
               getBoundingClientRect: function () {
-                if (!isLibCanvas) {
-                  return canvas.getBoundingClientRect();
-                }
+                return Qt.rect(0, 0, canvas.width, canvas.height);
               }
             };
 
@@ -758,14 +746,6 @@ QtObject {
             hasResizeEventRegistered = false;
             canvas.widthChanged.disconnect(onResize);
             canvas.heightChanged.disconnect(onResize);
-          }
-
-          if (isLibCanvas && canvas) {
-            if (document.body.contains(canvas)) {
-              document.body.removeChild(canvas);
-            }
-            canvas = null;
-            initialized = false;
           }
         }
 
