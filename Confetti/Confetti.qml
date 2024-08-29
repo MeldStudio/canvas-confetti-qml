@@ -37,22 +37,6 @@ QtQ.QtObject {
 
     required property QtQ.Canvas canvas
 
-    property bool isWorker: false
-
-    property var workerSize: undefined
-
-    readonly property bool canUseWorker: false
-    // var canUseWorker = !!(
-    //   global.Worker &&
-    //   global.Blob &&
-    //   global.Promise &&
-    //   global.OffscreenCanvas &&
-    //   global.OffscreenCanvasRenderingContext2D &&
-    //   global.HTMLCanvasElement &&
-    //   global.HTMLCanvasElement.prototype.transferControlToOffscreen &&
-    //   global.URL &&
-    //   global.URL.createObjectURL);
-
     // QML doesn't support the Path2D interface of the Canvas 2D API.
     // QML doesn't support DOMMatrix.
     readonly property bool canUsePaths: typeof Path2D === 'function' && typeof DOMMatrix === 'function'
@@ -149,115 +133,6 @@ QtQ.QtObject {
 
       return { frame: frame, cancel: cancel };
     }());
-
-    function getWorker() {
-        // not implemented
-        return null
-    }
-
-    /*
-    var getWorker = (function () {
-      var worker;
-      var prom;
-      var resolves = {};
-
-      function decorate(worker) {
-        function execute(options, callback) {
-          worker.postMessage({ options: options || {}, callback: callback });
-        }
-        worker.init = function initWorker(canvas) {
-          var offscreen = canvas.transferControlToOffscreen();
-          worker.postMessage({ canvas: offscreen }, [offscreen]);
-        };
-
-        worker.fire = function fireWorker(options, size, done) {
-          if (prom) {
-            execute(options, null);
-            return prom;
-          }
-
-          var id = Math.random().toString(36).slice(2);
-
-          prom = new Promise(function (resolve) {
-            function workerDone(msg) {
-              if (msg.data.callback !== id) {
-                return;
-              }
-
-              delete resolves[id];
-              worker.removeEventListener('message', workerDone);
-
-              prom = null;
-
-              bitmapMapper.clear();
-
-              done();
-              resolve();
-            }
-
-            worker.addEventListener('message', workerDone);
-            execute(options, id);
-
-            resolves[id] = workerDone.bind(null, { data: { callback: id }});
-          });
-
-          return prom;
-        };
-
-        worker.reset = function resetWorker() {
-          worker.postMessage({ reset: true });
-
-          for (var id in resolves) {
-            resolves[id]();
-            delete resolves[id];
-          }
-        };
-      }
-
-      return function () {
-        if (worker) {
-          return worker;
-        }
-
-        if (!isWorker && canUseWorker) {
-          var code = [
-            'var CONFETTI, SIZE = {}, module = {};',
-            '(' + main.toString() + ')(this, module, true, SIZE);',
-            'onmessage = function(msg) {',
-            '  if (msg.data.options) {',
-            '    CONFETTI(msg.data.options).then(function () {',
-            '      if (msg.data.callback) {',
-            '        postMessage({ callback: msg.data.callback });',
-            '      }',
-            '    });',
-            '  } else if (msg.data.reset) {',
-            '    CONFETTI && CONFETTI.reset();',
-            '  } else if (msg.data.resize) {',
-            '    SIZE.width = msg.data.resize.width;',
-            '    SIZE.height = msg.data.resize.height;',
-            '  } else if (msg.data.canvas) {',
-            '    SIZE.width = msg.data.canvas.width;',
-            '    SIZE.height = msg.data.canvas.height;',
-            '    CONFETTI = module.exports.create(msg.data.canvas);',
-            '  }',
-            '}',
-          ].join('\n');
-          try {
-            worker = new Worker(URL.createObjectURL(new Blob([code])));
-          } catch (e) {
-            // eslint-disable-next-line no-console
-            typeof console !== undefined && typeof console.warn === 'function' ? console.warn('🎊 Could not load worker', e) : null;
-
-            return null;
-          }
-
-          decorate(worker);
-        }
-
-        return worker;
-      };
-    })();
-    */
 
     readonly property var defaults: {
       return {
@@ -600,9 +475,7 @@ QtQ.QtObject {
 
     function confettiCannon(canvas, globalOpts) {
       var globalDisableForReducedMotion = prop(globalOpts, 'disableForReducedMotion', Boolean);
-      var shouldUseWorker = canUseWorker && !!prop(globalOpts || {}, 'useWorker');
-      var worker = shouldUseWorker ? getWorker() : null;
-      var initialized = (canvas && worker) ? !!canvas.__confetti_initialized : false;
+      var initialized = false;
       var preferLessMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion)').matches;
       var animationObj;
 
@@ -668,32 +541,16 @@ QtQ.QtObject {
           });
         }
 
-        if (worker && !initialized) {
-          worker.init(canvas);
-        }
-
         initialized = true;
-
-        if (worker) {
-          canvas.__confetti_initialized = true;
-        }
 
         function done() {
           animationObj = null;
-        }
-
-        if (worker) {
-          return worker.fire(options, done);
         }
 
         return fireLocal(options, done);
       }
 
       fire.reset = function () {
-        if (worker) {
-          worker.reset();
-        }
-
         if (animationObj) {
           animationObj.reset();
         }
@@ -828,7 +685,6 @@ QtQ.QtObject {
 
       return {
         type: 'bitmap',
-        // TODO these probably need to be transfered for workers
         bitmap: canvas.transferToImageBitmap(),
         matrix: [scale, 0, 0, scale, -width * scale / 2, -height * scale / 2]
       };
