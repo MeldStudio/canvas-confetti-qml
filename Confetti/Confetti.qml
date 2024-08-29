@@ -217,18 +217,6 @@ QtQ.QtObject {
       return origin;
     }
 
-    function getCanvas(zIndex) {
-      var canvas = document.createElement('canvas');
-
-      canvas.style.position = 'fixed';
-      canvas.style.top = '0px';
-      canvas.style.left = '0px';
-      canvas.style.pointerEvents = 'none';
-      canvas.style.zIndex = zIndex;
-
-      return canvas;
-    }
-
     function ellipse(context, x, y, radiusX, radiusY, rotation, startAngle, endAngle, antiClockwise) {
       context.save();
       context.translate(x, y);
