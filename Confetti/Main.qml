@@ -89,11 +89,11 @@ Window {
 
                 // Step 4: Create teh confetti effect using the provided
                 // "itemGrabResultShape" as the shape.
-                confetti.confetti({
+                confetti.fire({
                     spread: 360,
                     ticks: 60,
                     gravity: 0,
-                    origin: {x: 0.5, y: 0.5},
+                    origin: Qt.point(0.5, 0.5),
                     decay: 0.96,
                     startVelocity: 20,
                     shapes: [itemGrabResultShape],

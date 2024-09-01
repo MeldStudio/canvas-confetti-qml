@@ -117,15 +117,15 @@ QtQ.Canvas {
       }
     }
 
-    readonly property var raf: (function () {
-      var TIME = Math.floor(1000 / 60);
-      var frame, cancel;
-      var frames = {};
-      var lastFrameTime = 0;
+    readonly property var _raf: (function () {
+      const TIME = Math.floor(1000 / 60);
+      let frame, cancel;
+      const frames = {};
+      let lastFrameTime = 0;
 
-      const canvas = root.canvas
+      const canvas = root;
       frame = function (cb) {
-        var id = Math.random();
+        const id = Math.random();
 
         frames[id] = canvas.requestAnimationFrame(function onFrame(time) {
           if (lastFrameTime === time || lastFrameTime + TIME - 1 < time) {
@@ -151,11 +151,11 @@ QtQ.Canvas {
 
     // Applies the "transform" function to "val" if provided, otherwise just
     // returns "val" as is.
-    function convert(val: var, transform: var) : var {
+    function _convert(val: var, transform: var) : var {
       return transform ? transform(val) : val;
     }
 
-    function isOk(val: var) : bool {
+    function _isOk(val: var) : bool {
       return !(val === null || val === undefined);
     }
 
@@ -163,36 +163,32 @@ QtQ.Canvas {
     // name - The name of the property to return
     // transform -
     function _prop(options: var, name: string, transform: var): var {
-      if (options && root.isOk(options[name])) {
-        return convert(options[name], transform);
+      if (options && root._isOk(options[name])) {
+        return root._convert(options[name], transform);
       }
       return root[name];
     }
 
-    function onlyPositiveInt(number: var) : int {
+    function _onlyPositiveInt(number: var) : int {
       if (isNaN(number)) {
         return 0;
       }
       return number < 0 ? 0 : Math.floor(number);
     }
 
-    function randomInt(min, max) {
+    function _randomInt(min: int, max: int) : int {
       // [min, max)
       return Math.floor(Math.random() * (max - min)) + min;
     }
 
-    function toDecimal(str) {
-      return parseInt(str, 16);
-    }
-
-    function varToColor(colors) : list<QtQ.color> {
+    function _varToColor(colors) : list<QtQ.color> {
       return colors.map((color) => {
-          if (color instanceof QtQ.color) {
-            return color;
-          } else {
-            return Qt.color(color)
-          }
-        });
+        if (color instanceof QtQ.color) {
+          return color;
+        } else {
+          return Qt.color(color)
+        }
+      });
     }
 
     // DOMMatrix style 6-element array values to Qt matrix4x4.
@@ -207,13 +203,12 @@ QtQ.Canvas {
 
     // Qt matrix4x4 to DOMMatrix style 6-element array.
     function _Matrix4x4ToDOMMatrix(m: QtQ.matrix4x4) : var {
-
       return [m.m11, m.m12, m.m21, m.m22, m.m41, m.m42]
     }
 
-    function randomPhysics(opts) {
-      var radAngle = opts.angle * (Math.PI / 180);
-      var radSpread = opts.spread * (Math.PI / 180);
+    function _randomPhysics(opts: var) : var {
+      const radAngle = opts.angle * (Math.PI / 180);
+      const radSpread = opts.spread * (Math.PI / 180);
 
       return {
         x: opts.x,
@@ -241,18 +236,25 @@ QtQ.Canvas {
       };
     }
 
-    function drawFettiItemGrabResult(context, fetti, progress, x1, y1, x2, y2) {
-      var rotation = Math.PI / 10 * fetti.wobble;
-      var scaleX = Math.abs(x2 - x1) * 0.1;
-      var scaleY = Math.abs(y2 - y1) * 0.1;
-      var width = fetti.shape.size.width * fetti.scalar;
-      var height = fetti.shape.size.height * fetti.scalar;
+    function _drawFettiItemGrabResult(context: var,
+                                      fetti: var,
+                                      x1: real,
+                                      y1: real,
+                                      x2: real,
+                                      y2: real) : void {
+      const progress = (fetti.tick++) / fetti.totalTicks;
+      const width = fetti.shape.size.width * fetti.scalar;
+      const height = fetti.shape.size.height * fetti.scalar;
 
       // Nb(ollie-dawes): This is old logic from up stream. QML does not
       // implement "CanvasPattern.setTransform" so just show the images as flat
       // images for now.
       //
-      // var matrix = new DOMMatrix([
+      // const rotation = Math.PI / 10 * fetti.wobble;
+      // const scaleX = Math.abs(x2 - x1) * 0.1;
+      // const scaleY = Math.abs(y2 - y1) * 0.1;
+      //
+      // const matrix = new DOMMatrix([
       //   Math.cos(rotation) * scaleX,
       //   Math.sin(rotation) * scaleX,
       //   -Math.sin(rotation) * scaleY,
@@ -264,7 +266,7 @@ QtQ.Canvas {
       // // apply the transform matrix from the confetti shape
       // matrix.multiplySelf(new DOMMatrix(fetti.shape.matrix));
       //
-      // var pattern = context.createPattern(bitmapMapper.transform(fetti.shape.bitmap), 'no-repeat');
+      // const pattern = context.createPattern(bitmapMapper.transform(fetti.shape.bitmap), 'no-repeat');
       // pattern.setTransform(matrix);
       //
       // context.globalAlpha = (1 - progress);
@@ -282,18 +284,28 @@ QtQ.Canvas {
       context.globalAlpha = 1;
     }
 
-    function drawFettiCircle(context, fetti, x1, y1, x2, y2) {
+    function _drawFettiCircle(context: var,
+                              fetti: var,
+                              x1: real,
+                              y1: real,
+                              x2: real,
+                              y2: real) : void {
       context.ellipse(fetti.x, fetti.y, Math.abs(x2 - x1) * fetti.ovalScalar, Math.abs(y2 - y1) * fetti.ovalScalar, Math.PI / 10 * fetti.wobble, 0, 2 * Math.PI);
     }
 
-    function drawFettiStar(context, fetti, x1, y1, x2, y2) {
-      var rot = Math.PI / 2 * 3;
-      var innerRadius = 4 * fetti.scalar;
-      var outerRadius = 8 * fetti.scalar;
-      var x = fetti.x;
-      var y = fetti.y;
-      var spikes = 5;
-      var step = Math.PI / spikes;
+    function _drawFettiStar(context: var,
+                            fetti: var,
+                            x1: real,
+                            y1: real,
+                            x2: real,
+                            y2: real) : void {
+      const rot = Math.PI / 2 * 3;
+      const innerRadius = 4 * fetti.scalar;
+      const outerRadius = 8 * fetti.scalar;
+      let x = fetti.x;
+      let y = fetti.y;
+      let spikes = 5;
+      const step = Math.PI / spikes;
 
       while (spikes--) {
         x = fetti.x + Math.cos(rot) * outerRadius;
@@ -308,24 +320,34 @@ QtQ.Canvas {
       }
     }
 
-    function drawFettiSquare(context, fetti, x1, y1, x2, y2) {
+    function _drawFettiSquare(context: var,
+                              fetti: var,
+                              x1: real,
+                              y1: real,
+                              x2: real,
+                              y2: real) : void {
       context.moveTo(Math.floor(fetti.x), Math.floor(fetti.y));
       context.lineTo(Math.floor(fetti.wobbleX), Math.floor(y1));
       context.lineTo(Math.floor(x2), Math.floor(y2));
       context.lineTo(Math.floor(x1), Math.floor(fetti.wobbleY));
     }
 
-    function drawFettiShapeInner(context, fetti, progress, x1, y1, x2, y2) {
+    function _drawFettiShapeInner(context: var,
+                                  fetti: var,
+                                  x1: real,
+                                  y1: real,
+                                  x2: real,
+                                  y2: real) : void {
       context.beginPath();
 
       if (fetti.shape instanceof ItemGrabResultShape) {
-        root.drawFettiItemGrabResult(context, fetti, progress, x1, y1, x2, y2);
+        root._drawFettiItemGrabResult(context, fetti, x1, y1, x2, y2);
       } else if (fetti.shape === 'circle') {
-        root.drawFettiCircle(context, fetti, x1, y1, x2, y2);
+        root._drawFettiCircle(context, fetti, x1, y1, x2, y2);
       } else if (fetti.shape === 'star') {
-        root.drawFettiStar(context, fetti, x1, y1, x2, y2);
+        root._drawFettiStar(context, fetti, x1, y1, x2, y2);
       } else if (fetti.shape === 'square'){
-        root.drawFettiSquare(context, fetti, x1, y1, x2, y2);
+        root._drawFettiSquare(context, fetti, x1, y1, x2, y2);
       } else {
         console.assert(false, "Unknown fetti shape '%0'".arg(fetti.shape))
       }
@@ -333,30 +355,33 @@ QtQ.Canvas {
       context.closePath();
     }
 
-    function drawFettiShape(context, fetti, progress, x1, y1, x2, y2) {
+    function _drawFettiShape(context: var,
+                             fetti: var,
+                             x1: real,
+                             y1: real,
+                             x2: real,
+                             y2: real) : void {
+      const progress = (fetti.tick++) / fetti.totalTicks;
       context.fillStyle = Qt.rgba(fetti.color.r, fetti.color.g, fetti.color.b, 1 - progress);
-      root.drawFettiShapeInner(context, fetti, progress, x1, y1, x2, y2)
+      root._drawFettiShapeInner(context, fetti, x1, y1, x2, y2)
       context.fill();
     }
 
-    function drawFetti(context, fetti) {
-      var progress = (fetti.tick++) / fetti.totalTicks;
-
-      var x1 = fetti.x + (fetti.random * fetti.tiltCos);
-      var y1 = fetti.y + (fetti.random * fetti.tiltSin);
-      var x2 = fetti.wobbleX + (fetti.random * fetti.tiltCos);
-      var y2 = fetti.wobbleY + (fetti.random * fetti.tiltSin);
-
-      root.drawFettiShape(context, fetti, progress, x1, y1, x2, y2);
+    function _drawFetti(context: var, fetti: var) : void {
+      const x1 = fetti.x + (fetti.random * fetti.tiltCos);
+      const y1 = fetti.y + (fetti.random * fetti.tiltSin);
+      const x2 = fetti.wobbleX + (fetti.random * fetti.tiltCos);
+      const y2 = fetti.wobbleY + (fetti.random * fetti.tiltSin);
+      root._drawFettiShape(context, fetti, x1, y1, x2, y2);
     }
 
     // Performs a full redraw of the confetti scene.
-    function drawScene(context, animatingFettis, size: QtQ.size) {
+    function _drawScene(context: var, animatingFettis: var, size: QtQ.size) : void {
       context.clearRect(0, 0, size.width, size.height);
-      animatingFettis.forEach((fetti) => drawFetti(context, fetti));
+      animatingFettis.forEach((fetti) => _drawFetti(context, fetti));
     }
 
-    function updateFetti(fetti) {
+    function _updateFetti(fetti: var) : bool {
       fetti.x += Math.cos(fetti.angle2D) * fetti.velocity + fetti.drift;
       fetti.y += Math.sin(fetti.angle2D) * fetti.velocity + fetti.gravity;
       fetti.velocity *= fetti.decay;
@@ -383,11 +408,13 @@ QtQ.Canvas {
       return fetti.tick < fetti.totalTicks;
     }
 
-    function animate(canvas, fettis, done) {
-      var animatingFettis = fettis.slice();
-      var context = canvas.getContext('2d');
-      var animationFrame;
-      var destroy;
+    function _animate(fettis: var, done: var) : var {
+      let animatingFettis = fettis.slice();
+
+      const canvas = root;
+      const context = canvas.getContext('2d');
+      let animationFrame = null;
+      let destroy = null;
 
       var prom = new Promise(function (resolve) {
         function onDone() {
@@ -401,33 +428,32 @@ QtQ.Canvas {
 
         function update() {
           animatingFettis = animatingFettis.filter(function (fetti) {
-            return updateFetti(fetti);
+            return _updateFetti(fetti);
           });
 
-          drawScene(context, animatingFettis, Qt.size(canvas.width, canvas.height))
+          _drawScene(context, animatingFettis, Qt.size(canvas.width, canvas.height));
 
           if (animatingFettis.length) {
-            animationFrame = raf.frame(update);
+            animationFrame = root._raf.frame(update);
           } else {
             onDone();
           }
         }
 
-        animationFrame = raf.frame(update);
+        animationFrame = root._raf.frame(update);
         destroy = onDone;
       });
 
       return {
         addFettis: function (fettis) {
           animatingFettis = animatingFettis.concat(fettis);
-
           return prom;
         },
         canvas: canvas,
         promise: prom,
         reset: function () {
           if (animationFrame) {
-            raf.cancel(animationFrame);
+            root._raf.cancel(animationFrame);
           }
 
           if (destroy) {
@@ -438,13 +464,13 @@ QtQ.Canvas {
     }
 
     // Options
-    property int particleCount: 50
-    property real angle: 90
-    property real spread: 45
-    property real startVelocity: 45
-    property real decay: 0.9
-    property real gravity: 1
-    property real drift: 0
+    property int particleCount: 50;
+    property real angle: 90;
+    property real spread: 45;
+    property real startVelocity: 45;
+    property real decay: 0.9;
+    property real gravity: 1;
+    property real drift: 0;
     property list<QtQ.color> colors: [
       Qt.color('#26ccff'),
       Qt.color('#a25afd'),
@@ -453,33 +479,25 @@ QtQ.Canvas {
       Qt.color('#fcff42'),
       Qt.color('#ffa62d'),
       Qt.color('#ff36ff')
-    ]
-    property int ticks: 200
-    property list<string> shapes: ['square', 'circle']
-    property real scalar: 1
-    property bool flat: false
-    property QtQ.point origin: Qt.point(0.5, 0.5)
+    ];
+    property int ticks: 200;
+    property list<string> shapes: ['square', 'circle'];
+    property real scalar: 1;
+    property bool flat: false;
+    property QtQ.point origin: Qt.point(0.5, 0.5);
 
     // Internal properties
-    property var animationObj
+    property var animationObj;
 
-    function fire(options: var, done: var) : Promise {
-
-      function _done() {
-        root.animationObj = null;
-        if (done) {
-          done();
-        }
-      }
-
-      const particleCount = root._prop(options, 'particleCount', root.onlyPositiveInt);
+    function fire(options: var, done: var) : var {
+      const particleCount = root._prop(options, 'particleCount', root._onlyPositiveInt);
       const angle = root._prop(options, 'angle', Number);
       const spread = root._prop(options, 'spread', Number);
       const startVelocity = root._prop(options, 'startVelocity', Number);
       const decay = root._prop(options, 'decay', Number);
       const gravity = root._prop(options, 'gravity', Number);
       const drift = root._prop(options, 'drift', Number);
-      const colors = root._prop(options, 'colors', root.varToColor);
+      const colors = root._prop(options, 'colors', root._varToColor);
       const ticks = root._prop(options, 'ticks', Number);
       const shapes = root._prop(options, 'shapes');
       const scalar = root._prop(options, 'scalar', Number);
@@ -488,18 +506,18 @@ QtQ.Canvas {
 
       const fettis = [];
       const startPos = Qt.point(root.width * origin.x,
-                                root.height * origin.y)
+                                root.height * origin.y);
 
       for (let i = 0; i < particleCount; i++) {
         fettis.push(
-          randomPhysics({
+          root._randomPhysics({
             x: startPos.x,
             y: startPos.y,
             angle: angle,
             spread: spread,
             startVelocity: startVelocity,
-            color: colors[randomInt(0, colors.length)],
-            shape: shapes[randomInt(0, shapes.length)],
+            color: colors[root._randomInt(0, colors.length)],
+            shape: shapes[root._randomInt(0, shapes.length)],
             ticks: ticks,
             decay: decay,
             gravity: gravity,
@@ -515,7 +533,15 @@ QtQ.Canvas {
       if (root.animationObj) {
         return root.animationObj.addFettis(fettis);
       }
-      root.animationObj = animate(canvas, fettis , _done);
+
+      function _done() {
+        root.animationObj = null;
+        if (done) {
+          done();
+        }
+      }
+
+      root.animationObj = root._animate(fettis, _done);
       return root.animationObj.promise;
     }
 
@@ -544,16 +570,16 @@ QtQ.Canvas {
         onLoadFailedCallback: onLoadFailedCallback,
       })
       if (loadingItemGrabResultShape) {
-        const canvas = root.canvas
-        root._loadingItemGrabResultShapes.push(loadingItemGrabResultShape)
-        canvas.loadImage(loadingItemGrabResultShape.itemGrabResult.url)
+        const canvas = root;
+        root._loadingItemGrabResultShapes.push(loadingItemGrabResultShape);
+        canvas.loadImage(loadingItemGrabResultShape.itemGrabResult.url);
 
         // Canvas.imageLoaded is not emitted if the image was loaded immediantly
         // so manually call "onImageLoaded" in that case.
         // See this bug for details:
         // https://bugreports.qt.io/browse/QTBUG-128480
         if (canvas.isImageLoaded(loadingItemGrabResultShape.itemGrabResult.url)) {
-          root._canvasConnections.onImageLoaded()
+          root._canvasConnections.onImageLoaded();
         }
       }
     }
@@ -566,16 +592,16 @@ QtQ.Canvas {
     // "ItemGrabResultShape" reference that was returned from the
     // "onLoadedCallback" of "loadItemGrabResultAsShape". Images that are in the
     // progress of being loaded can not be unloaded.
-    function unloadItemGrabResultShape(itemGrabResultShape: ItemGrabResultShape) {
-        const index = root._loadedItemGrabResultShapes.indexOf(itemGrabResultShape)
-        if (index < 0) {
-            console.warn("Unable to unload itemGrabResultShape shape. Shape not
-                          found, has it already been unloaded?")
-            return
-        }
-        const removedItemGrabResultShapes = root._loadedItemGrabResultShapes.splice(index, 1)
-        for (let removedItemGrabResultShape of removedItemGrabResultShapes) {
-            removedItemGrabResultShape.destroy()
-        }
+    function unloadItemGrabResultShape(itemGrabResultShape: ItemGrabResultShape) : void {
+      const index = root._loadedItemGrabResultShapes.indexOf(itemGrabResultShape)
+      if (index < 0) {
+        console.warn("Unable to unload itemGrabResultShape shape. Shape not
+                      found, has it already been unloaded?");
+        return;
+      }
+      const removedItemGrabResultShapes = root._loadedItemGrabResultShapes.splice(index, 1);
+      for (let removedItemGrabResultShape of removedItemGrabResultShapes) {
+        removedItemGrabResultShape.destroy();
+      }
     }
 }
