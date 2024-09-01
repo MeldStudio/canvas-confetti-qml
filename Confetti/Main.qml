@@ -8,12 +8,7 @@ Window {
     visible: true
     title: qsTr("Confetti")
 
-    color: "grey"
-
-    Confetti {
-        id: confetti
-        canvas: canvas
-    }
+    color: "#131313"
 
     function snow() {
         var duration = 15 * 1000;
@@ -39,26 +34,93 @@ Window {
               // since particles fall down, skew start toward the top
               y: (Math.random() * skew) - 0.2
             },
-            colors: ['#ffffff'],
-            shapes: ['circle'],
+            colors: [
+              '#FB923C', // orange_300
+              '#E51A9B', // meld_rhodamine_red
+              '#8E51ED', // meld_indigo
+              '#0083CB', // meld_process_blue
+              '#017AFF', // meld_blue
+              '#52FFC0', // meld_teal
+            ],
+            shapes: ['square'],
             gravity: randomInRange(0.4, 0.6),
-            scalar: randomInRange(0.4, 1),
+            // scalar: randomInRange(0.4, 1),
             drift: randomInRange(-0.4, 0.4)
           });
-          canvas.requestPaint()
+          confetti.requestPaint()
 
           if (timeLeft <= 0) {
-            canvas.painted.disconnect(frame)
+            confetti.painted.disconnect(frame)
           }
         }
 
-        canvas.painted.connect(frame)
+        confetti.painted.connect(frame)
         frame()
     }
 
-    Canvas {
-        id: canvas
+    ////////////////////////////////////////////////////////////////////////////
+    // Example method for how to "confetti" emoji icons.
+    // Right click canvas to trigger.
+    ////////////////////////////////////////////////////////////////////////////
+
+    // Step 1: Create a text item displaying the required emoji.
+    Text {
+        id: textShapeSource
+
+        // Make invisible this item does not show normally.
+        visible: false
+        color: "#000000"
+        font.family: "Segoe UI Emoji"
+        font.pixelSize: 32
+        text: "🦄"
+    }
+
+    function emoji() : void {
+        // Step 2: Use QML's Item.grabToImage method to get the item as a image.
+        textShapeSource.grabToImage(function(itemGrabResult) {
+
+            function onLoadedCallback(itemGrabResultShape) {
+                // Step 5: Optionally unload the image if it is no longer
+                // required. You must unload any images you load as otherwise
+                // confetti will retain a reference to them internally.
+                function unloadImageGrabResultShape() {
+                    confetti.unloadItemGrabResultShape(itemGrabResultShape)
+                }
+
+                // Step 4: Create teh confetti effect using the provided
+                // "itemGrabResultShape" as the shape.
+                confetti.confetti({
+                    spread: 360,
+                    ticks: 60,
+                    gravity: 0,
+                    origin: {x: 0.5, y: 0.5},
+                    decay: 0.96,
+                    startVelocity: 20,
+                    shapes: [itemGrabResultShape],
+                }).then(unloadImageGrabResultShape, unloadImageGrabResultShape);
+            }
+
+            function onLoadFailedCallback(itemGrabResult) {
+                console.warn("Confetti failed to load ItemGrabResult as shape.")
+            }
+
+            // Step 3: Use "loadItemGrabResultAsShape" to asynchronously load
+            // the image into the canvas so that it can rendered.
+            const itemSize = Qt.size(textShapeSource.width, textShapeSource.height)
+            confetti.loadItemGrabResultAsShape(itemGrabResult,
+                                               itemSize,
+                                               onLoadedCallback,
+                                               onLoadFailedCallback);
+        })
+    }
+    ////////////////////////////////////////////////////////////////////////////
+
+    Confetti {
+        id: confetti
         anchors.fill: parent
+
+        // layer.enabled: true
+        // layer.textureSize: Qt.size(this.width / 2, this.height / 2)
 
         contextType: "2d"
         renderStrategy: Canvas.Threaded
@@ -89,13 +151,13 @@ Window {
             anchors.top: parent.top
             anchors.left: parent.left
             anchors.margins: 10
-            text: "FPS: " + canvas.fps.toFixed(2)
+            text: "FPS: " + confetti.fps.toFixed(2)
             font.pixelSize: 20
             color: "white"
         }
 
         MouseArea {
-            anchors.fill: canvas
+            anchors.fill: confetti
             acceptedButtons: Qt.AllButtons
 
             onPressed: event => {
@@ -104,10 +166,17 @@ Window {
                     root.snow()
                     return
                 }
+
+                if (event.button === Qt.MiddleButton) {
+                    root.emoji()
+                    return
+                }
+
                 var count = 200
                 var defaults = {
                     "origin": {
-                        "y": 0.7
+                        "x": event.x / confetti.width,
+                        "y": event.y / confetti.height,
                     }
                 }
 

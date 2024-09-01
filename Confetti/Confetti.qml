@@ -32,10 +32,10 @@ pragma ValueTypeBehavior: Addressable
 
 import QtQuick as QtQ
 
-QtQ.QtObject {
+QtQ.Canvas {
     id: root
 
-    required property QtQ.Canvas canvas
+    readonly property alias canvas: root
 
     component ItemGrabResultShape: QtQ.QtObject {
       // We must hold onto ItemGrabResult reference otherwise the image will
