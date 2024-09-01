@@ -35,8 +35,6 @@ import QtQuick as QtQ
 QtQ.Canvas {
     id: root
 
-    readonly property alias canvas: root
-
     component ItemGrabResultShape: QtQ.QtObject {
       // We must hold onto ItemGrabResult reference otherwise the image will
       // become invalid. Unfortunatly this is impossible due to:
@@ -71,12 +69,12 @@ QtQ.Canvas {
     property list<ItemGrabResultShape> _loadedItemGrabResultShapes: []
 
     readonly property QtQ.Connections _canvasConnections: QtQ.Connections {
-      target: root.canvas
+      target: root
       function onImageLoaded() {
         // Any time the canvas emits it's "imageLoaded" signal check to see if
         // any of the loading ItemGrabResultShape have finished loading or encountered
         // an error.
-        const canvas = root.canvas
+        const canvas = root
         const loadingItemGrabResultShapes = [...root._loadingItemGrabResultShapes]
         const failedItemGrabResultShapes = []
         const loadedItemGrabResultShapes = []
