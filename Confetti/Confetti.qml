@@ -149,51 +149,30 @@ QtQ.Canvas {
       return { frame: frame, cancel: cancel };
     }());
 
-    readonly property var defaults: {
-      return {
-        particleCount: 50,
-        angle: 90,
-        spread: 45,
-        startVelocity: 45,
-        decay: 0.9,
-        gravity: 1,
-        drift: 0,
-        ticks: 200,
-        x: 0.5,
-        y: 0.5,
-        shapes: ['square', 'circle'],
-        zIndex: 100,
-        colors: [
-          '#26ccff',
-          '#a25afd',
-          '#ff5e7e',
-          '#88ff5a',
-          '#fcff42',
-          '#ffa62d',
-          '#ff36ff'
-        ],
-        // probably should be true, but back-compat
-        disableForReducedMotion: false,
-        scalar: 1
-      }
-    }
-
-    function convert(val, transform) {
+    // Applies the "transform" function to "val" if provided, otherwise just
+    // returns "val" as is.
+    function convert(val: var, transform: var) : var {
       return transform ? transform(val) : val;
     }
 
-    function isOk(val) {
+    function isOk(val: var) : bool {
       return !(val === null || val === undefined);
     }
 
-    function prop(options, name, transform) {
-      return convert(
-        options && isOk(options[name]) ? options[name] : defaults[name],
-        transform
-      );
+    // options - A dictionary of option values
+    // name - The name of the property to return
+    // transform -
+    function _prop(options: var, name: string, transform: var): var {
+      if (options && root.isOk(options[name])) {
+        return convert(options[name], transform);
+      }
+      return root[name];
     }
 
-    function onlyPositiveInt(number){
+    function onlyPositiveInt(number: var) : int {
+      if (isNaN(number)) {
+        return 0;
+      }
       return number < 0 ? 0 : Math.floor(number);
     }
 
@@ -206,22 +185,14 @@ QtQ.Canvas {
       return parseInt(str, 16);
     }
 
-    function colorsToRgb(colors) {
-      return colors.map(hexToRgb);
-    }
-
-    function hexToRgb(str) {
-      var val = String(str).replace(/[^0-9a-f]/gi, '');
-
-      if (val.length < 6) {
-          val = val[0]+val[0]+val[1]+val[1]+val[2]+val[2];
-      }
-
-      return {
-        r: toDecimal(val.substring(0,2)),
-        g: toDecimal(val.substring(2,4)),
-        b: toDecimal(val.substring(4,6))
-      };
+    function varToColor(colors) : list<QtQ.color> {
+      return colors.map((color) => {
+          if (color instanceof QtQ.color) {
+            return color;
+          } else {
+            return Qt.color(color)
+          }
+        });
     }
 
     // DOMMatrix style 6-element array values to Qt matrix4x4.
@@ -238,14 +209,6 @@ QtQ.Canvas {
     function _Matrix4x4ToDOMMatrix(m: QtQ.matrix4x4) : var {
 
       return [m.m11, m.m12, m.m21, m.m22, m.m41, m.m42]
-    }
-
-    function getOrigin(options) {
-      var origin = prop(options, 'origin', Object);
-      origin.x = prop(origin, 'x', Number);
-      origin.y = prop(origin, 'y', Number);
-
-      return origin;
     }
 
     function randomPhysics(opts) {
@@ -371,7 +334,7 @@ QtQ.Canvas {
     }
 
     function drawFettiShape(context, fetti, progress, x1, y1, x2, y2) {
-      context.fillStyle = 'rgba(' + fetti.color.r + ', ' + fetti.color.g + ', ' + fetti.color.b + ', ' + (1 - progress) + ')';
+      context.fillStyle = Qt.rgba(fetti.color.r, fetti.color.g, fetti.color.b, 1 - progress);
       root.drawFettiShapeInner(context, fetti, progress, x1, y1, x2, y2)
       context.fill();
     }
@@ -474,90 +437,86 @@ QtQ.Canvas {
       };
     }
 
-    function confettiCannon(canvas, globalOpts) {
-      var globalDisableForReducedMotion = prop(globalOpts, 'disableForReducedMotion', Boolean);
-      var initialized = false;
-      var preferLessMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion)').matches;
-      var animationObj;
+    // Options
+    property int particleCount: 50
+    property real angle: 90
+    property real spread: 45
+    property real startVelocity: 45
+    property real decay: 0.9
+    property real gravity: 1
+    property real drift: 0
+    property list<QtQ.color> colors: [
+      Qt.color('#26ccff'),
+      Qt.color('#a25afd'),
+      Qt.color('#ff5e7e'),
+      Qt.color('#88ff5a'),
+      Qt.color('#fcff42'),
+      Qt.color('#ffa62d'),
+      Qt.color('#ff36ff')
+    ]
+    property int ticks: 200
+    property list<string> shapes: ['square', 'circle']
+    property real scalar: 1
+    property bool flat: false
+    property QtQ.point origin: Qt.point(0.5, 0.5)
 
-      function fireLocal(options, done) {
-        var particleCount = prop(options, 'particleCount', onlyPositiveInt);
-        var angle = prop(options, 'angle', Number);
-        var spread = prop(options, 'spread', Number);
-        var startVelocity = prop(options, 'startVelocity', Number);
-        var decay = prop(options, 'decay', Number);
-        var gravity = prop(options, 'gravity', Number);
-        var drift = prop(options, 'drift', Number);
-        var colors = prop(options, 'colors', colorsToRgb);
-        var ticks = prop(options, 'ticks', Number);
-        var shapes = prop(options, 'shapes');
-        var scalar = prop(options, 'scalar');
-        var flat = !!prop(options, 'flat');
-        var origin = getOrigin(options);
+    // Internal properties
+    property var animationObj
 
-        var temp = particleCount;
-        var fettis = [];
+    function fire(options: var, done: var) : Promise {
 
-        var startX = canvas.width * origin.x;
-        var startY = canvas.height * origin.y;
-
-        while (temp--) {
-          fettis.push(
-            randomPhysics({
-              x: startX,
-              y: startY,
-              angle: angle,
-              spread: spread,
-              startVelocity: startVelocity,
-              color: colors[randomInt(0, colors.length)],
-              shape: shapes[randomInt(0, shapes.length)],
-              ticks: ticks,
-              decay: decay,
-              gravity: gravity,
-              drift: drift,
-              scalar: scalar,
-              flat: flat
-            })
-          );
+      function _done() {
+        root.animationObj = null;
+        if (done) {
+          done();
         }
-
-        // if we have a previous canvas already animating,
-        // add to it
-        if (animationObj) {
-          return animationObj.addFettis(fettis);
-        }
-
-        animationObj = animate(canvas, fettis , done);
-
-        return animationObj.promise;
       }
 
-      function fire(options) {
-        var disableForReducedMotion = globalDisableForReducedMotion || prop(options, 'disableForReducedMotion', Boolean);
-        var zIndex = prop(options, 'zIndex', Number);
+      const particleCount = root._prop(options, 'particleCount', root.onlyPositiveInt);
+      const angle = root._prop(options, 'angle', Number);
+      const spread = root._prop(options, 'spread', Number);
+      const startVelocity = root._prop(options, 'startVelocity', Number);
+      const decay = root._prop(options, 'decay', Number);
+      const gravity = root._prop(options, 'gravity', Number);
+      const drift = root._prop(options, 'drift', Number);
+      const colors = root._prop(options, 'colors', root.varToColor);
+      const ticks = root._prop(options, 'ticks', Number);
+      const shapes = root._prop(options, 'shapes');
+      const scalar = root._prop(options, 'scalar', Number);
+      const flat = !!root._prop(options, 'flat');
+      const origin = root._prop(options, 'origin');
 
-        if (disableForReducedMotion && preferLessMotion) {
-          return new Promise(function (resolve) {
-            resolve();
-          });
-        }
+      const fettis = [];
+      const startPos = Qt.point(root.width * origin.x,
+                                root.height * origin.y)
 
-        initialized = true;
-
-        function done() {
-          animationObj = null;
-        }
-
-        return fireLocal(options, done);
+      for (let i = 0; i < particleCount; i++) {
+        fettis.push(
+          randomPhysics({
+            x: startPos.x,
+            y: startPos.y,
+            angle: angle,
+            spread: spread,
+            startVelocity: startVelocity,
+            color: colors[randomInt(0, colors.length)],
+            shape: shapes[randomInt(0, shapes.length)],
+            ticks: ticks,
+            decay: decay,
+            gravity: gravity,
+            drift: drift,
+            scalar: scalar,
+            flat: flat
+          })
+        );
       }
 
-      fire.reset = function () {
-        if (animationObj) {
-          animationObj.reset();
-        }
-      };
-
-      return fire;
+      // if we have a previous canvas already animating,
+      // add to it
+      if (root.animationObj) {
+        return root.animationObj.addFettis(fettis);
+      }
+      root.animationObj = animate(canvas, fettis , _done);
+      return root.animationObj.promise;
     }
 
     // Provided an "ItemGrabResult" this method will load the image into the
@@ -618,10 +577,5 @@ QtQ.Canvas {
         for (let removedItemGrabResultShape of removedItemGrabResultShapes) {
             removedItemGrabResultShape.destroy()
         }
-    }
-
-    property var confetti: null
-    QtQ.Component.onCompleted: {
-        root.confetti = root.confettiCannon(root.canvas, {})
     }
 }

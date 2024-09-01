@@ -25,7 +25,7 @@ Window {
           var ticks = Math.max(200, 500 * (timeLeft / duration));
           skew = Math.max(0.8, skew - 0.001);
 
-          confetti.confetti({
+          confetti.fire({
             particleCount: 1,
             startVelocity: 0,
             ticks: ticks,
@@ -35,12 +35,12 @@ Window {
               y: (Math.random() * skew) - 0.2
             },
             colors: [
-              '#FB923C', // orange_300
-              '#E51A9B', // meld_rhodamine_red
-              '#8E51ED', // meld_indigo
-              '#0083CB', // meld_process_blue
-              '#017AFF', // meld_blue
-              '#52FFC0', // meld_teal
+              Qt.color('#FB923C'), // orange_300
+              Qt.color('#E51A9B'), // meld_rhodamine_red
+              Qt.color('#8E51ED'), // meld_indigo
+              Qt.color('#0083CB'), // meld_process_blue
+              Qt.color('#017AFF'), // meld_blue
+              Qt.color('#52FFC0'), // meld_teal
             ],
             shapes: ['square'],
             gravity: randomInRange(0.4, 0.6),
@@ -174,38 +174,35 @@ Window {
 
                 var count = 200
                 var defaults = {
-                    "origin": {
-                        "x": event.x / confetti.width,
-                        "y": event.y / confetti.height,
-                    }
+                    "origin": Qt.point(event.x / confetti.width, event.y / confetti.height)
                 }
 
                 function fire(particleRatio, opts) {
                     const params = Object.assign({"particleCount": Math.floor(count * particleRatio)}, defaults, opts)
-                    confetti.confetti(params)
+                    confetti.fire(params)
                 }
 
                 fire(0.25, {
                     "spread": 26,
-                    "startVelocity": 55
+                    "startVelocity": 55,
                 })
                 fire(0.2, {
-                    "spread": 60
+                    "spread": 60,
                 })
                 fire(0.35, {
                     "spread": 100,
                     "decay": 0.91,
-                    "scalar": 0.8
+                    "scalar": 0.8,
                 })
                 fire(0.1, {
                     "spread": 120,
                     "startVelocity": 25,
                     "decay": 0.92,
-                    "scalar": 1.2
+                    "scalar": 1.2,
                 })
                 fire(0.1, {
                     "spread": 120,
-                    "startVelocity": 45
+                    "startVelocity": 45,
                 })
             }
         }
