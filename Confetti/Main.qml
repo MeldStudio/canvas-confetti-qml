@@ -117,37 +117,24 @@ Window {
   Confetti {
     id: confetti;
 
-    anchors.fill: parent;
+    anchors.fill: root.contentItem;
     contextType: "2d";
     renderStrategy: Canvas.Threaded;
 
-    property int frameCount: 0;
-    property real lastTime: 0;
-    property real fps: 0;
-    onPainted: {
-      const frameCount = ++this.frameCount;
-      const currentTime = Date.now();
-      if (this.lastTime === 0) {
-        this.lastTime = currentTime;
-      } else {
-        // time in seconds
-        const deltaTime = (currentTime - this.lastTime) / 1000.0;
-        if (deltaTime >= 0.2) {
-          this.fps = frameCount / deltaTime;
-          this.frameCount = 0;
-          this.lastTime = currentTime;
-        }
-      }
-    }
-
-    Text {
-      id: fpsText;
+    Column {
       anchors.top: parent.top;
       anchors.left: parent.left;
       anchors.margins: 10;
-      text: "FPS: " + confetti.fps.toFixed(2);
-      font.pixelSize: 20;
-      color: "white";
+      Text {
+        text: "Current FPS: " + confetti.currentFPS.toFixed(2);
+        font.pixelSize: 20;
+        color: "white";
+      }
+      Text {
+        text: "Average FPS: " + confetti.averageFPS.toFixed(2);
+        font.pixelSize: 20;
+        color: "white";
+      }
     }
 
     MouseArea {

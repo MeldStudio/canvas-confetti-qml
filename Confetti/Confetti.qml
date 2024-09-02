@@ -116,18 +116,31 @@ QtQ.Canvas {
   }
 
   // Time of last render in milliseconds.
-  property var _lastFrameTime: 0
+  property var _lastFrameTime: null
+  property list<int> _lastRenderIntervals: []
   function _requestNextAnimationFrame(cb: var) : void {
     root.requestAnimationFrame(function onFrame(time) {
       const requested_frame_interval = Math.floor(1000 / root.maxFps);
-      if (root._lastFrameTime + requested_frame_interval  > time) {
+      const lastFrameTime = root._lastFrameTime
+      const noPreviousRender = lastFrameTime === null;
+      if (!noPreviousRender && lastFrameTime + requested_frame_interval  > time) {
         // If it is not yet time to render then request another animation frame.
         root.requestAnimationFrame(onFrame);
         return;
       }
 
-      // Else perform the requested callback.
+      // Else perform the requested callback after updating metrics.
+      if (!noPreviousRender) {
+        const lastRenderIntervals = [...root._lastRenderIntervals];
+        lastRenderIntervals.unshift(time - lastFrameTime);
+        if (lastRenderIntervals.length > root.averageFpsSamples) {
+          lastRenderIntervals.pop();
+        }
+        root._lastRenderIntervals = lastRenderIntervals;
+      }
+
       root._lastFrameTime = time;
+
       cb();
     });
   }
@@ -403,6 +416,8 @@ QtQ.Canvas {
         destroy = null;
 
         context.clearRect(0, 0, canvas.width, canvas.height);
+        root._lastFrameTime = null;
+        root._lastRenderIntervals = [];
 
         done();
         resolve();
@@ -459,6 +474,31 @@ QtQ.Canvas {
   property bool flat: false;
   property QtQ.point origin: Qt.point(0.5, 0.5);
   property real maxFps: 60
+  property int averageFpsSamples: root.maxFps
+  readonly property real currentFPS: {
+    if (root._lastRenderIntervals.length <= 0) {
+      return Nan;
+    }
+    const lastRenderInterval = root._lastRenderIntervals[0];
+    if (lastRenderInterval === 0) {
+      return Number.Infinity;
+    }
+    return 1000 / lastRenderInterval;
+  }
+  readonly property real averageFPS: {
+    const sampleCount = root._lastRenderIntervals.length
+    if (sampleCount <= 0) {
+      return NaN
+    }
+    const meanRenderInterval = root._lastRenderIntervals.reduce(function (sum, value) {
+        return sum + value;
+    }, 0) / sampleCount;
+
+    if (meanRenderInterval === 0) {
+      return 0;
+    }
+    return 1000 / meanRenderInterval;
+  }
 
   // Internal properties
   property var animationObj;
