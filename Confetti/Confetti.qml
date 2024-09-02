@@ -35,6 +35,213 @@ import QtQuick as QtQ
 QtQ.Canvas {
   id: root
 
+  // The number of new fetti objects to create on each "fire" call.
+  property int particleCount: 50;
+
+  // Various properties to control the behavour of the confetti simulation.
+  property real angle: 90;
+  property real spread: 45;
+  property real startVelocity: 45;
+  property real decay: 0.9;
+  property real gravity: 1;
+  property real drift: 0;
+
+  // A list of colors that will be used when creating the fetti objects. A new
+  // fetti has an equal propbablility of using any of these values.
+  property list<QtQ.color> colors: [
+    Qt.color('#26ccff'),
+    Qt.color('#a25afd'),
+    Qt.color('#ff5e7e'),
+    Qt.color('#88ff5a'),
+    Qt.color('#fcff42'),
+    Qt.color('#ffa62d'),
+    Qt.color('#ff36ff')
+  ];
+
+  // The number of render frames that a fetti should live for.
+  property int ticks: 200;
+
+  // A list of shape types that should be rendered, each shape will have an
+  // equal probability of being used for a given fetti.
+  // Accepted values are:
+  // - 'square'
+  // - 'circle'
+  // - 'star'
+  // - ItemGrabResultShape <- obtained through "loadItemGrabResultAsShape".
+  property list<string> shapes: ['square', 'circle'];
+
+  // A factor that will scale the size of the fetti objects uniformly.
+  property real scalar: 1;
+
+  property bool flat: false;
+
+  // The default origin for fetti objects to be created at. This position is
+  // relative to the canvas size.
+  property QtQ.point origin: Qt.point(0.5, 0.5);
+
+  // Set to limit the FPS to a given value. If set to zero then rendering will
+  // not be capped.
+  property real maxFps: 60
+
+  // The Current FPS calculated based on the last render interval.
+  readonly property real currentFPS: {
+    if (root._lastRenderIntervals.length <= 0) {
+      return Nan;
+    }
+    const lastRenderInterval = root._lastRenderIntervals[0];
+    if (lastRenderInterval === 0) {
+      return Number.Infinity;
+    }
+    return 1000 / lastRenderInterval;
+  }
+
+  // A average FPS metric that will compute the average FPS based on the last
+  // "averageFpsSamples" frames.
+  property int averageFpsSamples: root.maxFps > 0 ? root.maxFps : 60
+  readonly property real averageFPS: {
+    const sampleCount = root._lastRenderIntervals.length
+    if (sampleCount <= 0) {
+      return NaN
+    }
+    const meanRenderInterval = root._lastRenderIntervals.reduce(function (sum, value) {
+        return sum + value;
+    }, 0) / sampleCount;
+
+    if (meanRenderInterval === 0) {
+      return 0;
+    }
+    return 1000 / meanRenderInterval;
+  }
+
+  // Call "fire" to fire a confetti explosion!
+  //
+  // options: A Javascript object that allows you to override the default
+  //          confetti options.
+  // done:    A callback function that will be called when all fettis have
+  //          disappeared
+  function fire(options: var, done: var) : var {
+    const particleCount = root._prop(options, 'particleCount', root._onlyPositiveInt);
+    const angle = root._prop(options, 'angle', Number);
+    const spread = root._prop(options, 'spread', Number);
+    const startVelocity = root._prop(options, 'startVelocity', Number);
+    const decay = root._prop(options, 'decay', Number);
+    const gravity = root._prop(options, 'gravity', Number);
+    const drift = root._prop(options, 'drift', Number);
+    const colors = root._prop(options, 'colors', root._varToColor);
+    const ticks = root._prop(options, 'ticks', Number);
+    const shapes = root._prop(options, 'shapes');
+    const scalar = root._prop(options, 'scalar', Number);
+    const flat = !!root._prop(options, 'flat');
+    const origin = root._prop(options, 'origin');
+
+    const fettis = [];
+    const startPos = Qt.point(root.width * origin.x,
+                              root.height * origin.y);
+
+    // Create "particleCount" fetti objects.
+    for (let i = 0; i < particleCount; i++) {
+      fettis.push(
+        root._randomPhysics({
+          x: startPos.x,
+          y: startPos.y,
+          angle: angle,
+          spread: spread,
+          startVelocity: startVelocity,
+          color: colors[root._randomInt(0, colors.length)],
+          shape: shapes[root._randomInt(0, shapes.length)],
+          ticks: ticks,
+          decay: decay,
+          gravity: gravity,
+          drift: drift,
+          scalar: scalar,
+          flat: flat
+        })
+      );
+    }
+
+    // if we have a previous canvas already animating,
+    // add to it
+    if (root._animationObj) {
+      return root._animationObj.addFettis(fettis);
+    }
+
+    function _done() {
+      root._animationObj = null;
+      if (done) {
+        done();
+      }
+    }
+
+    root._animationObj = root._animate(fettis, _done);
+    return root._animationObj.promise;
+  }
+
+  // Provided an "ItemGrabResult" this method will load the image into the
+  // canvas so that it can be rendered and then either call the
+  // "onLoadedCallback" or "onLoadFailedCallback" depending on whether the
+  // image loaded successfully.
+  //
+  // "onLoadedCallback" will return a "ItemGrabResultShape" that can be passed
+  // into the "shapes" array property and unloaded by calling
+  // "unloadItemGrabResultShape".
+  //
+  // "onLoadFailedCallback" will return the original "itemGrabResult" if the
+  // canvas fails to load the image successfully.
+  function loadItemGrabResultAsShape(itemGrabResult: QtQ.QtObject,
+                                     size: QtQ.size,
+                                     onLoadedCallback: var,
+                                     onLoadFailedCallback: var) : void {
+    const scale = 1;
+    const loadingItemGrabResultShape = itemGrabResultShapeComponent.createObject(root, {
+      itemGrabResult: itemGrabResult,
+      url: itemGrabResult.url,
+      size: size,
+      matrix: root._DOMMatrixtoMatrix4x4(scale, 0, 0, scale, -width * scale / 2, -height * scale / 2),
+      onLoadedCallback: onLoadedCallback,
+      onLoadFailedCallback: onLoadFailedCallback,
+    })
+    if (loadingItemGrabResultShape) {
+      const canvas = root;
+      root._loadingItemGrabResultShapes.push(loadingItemGrabResultShape);
+      canvas.loadImage(loadingItemGrabResultShape.itemGrabResult.url);
+
+      // Canvas.imageLoaded is not emitted if the image was loaded immediantly
+      // so manually call "onImageLoaded" in that case.
+      // See this bug for details:
+      // https://bugreports.qt.io/browse/QTBUG-128480
+      if (canvas.isImageLoaded(loadingItemGrabResultShape.itemGrabResult.url)) {
+        root._canvasConnections.onImageLoaded();
+      }
+    }
+  }
+
+  // This method will release the "ItemGrabResultShape" reference held
+  // internally for "loadItemGrabResultAsShape" calls that completed
+  // successfully.
+  //
+  // The provided "ItemGrabResultShape" value should only be a
+  // "ItemGrabResultShape" reference that was returned from the
+  // "onLoadedCallback" of "loadItemGrabResultAsShape". Images that are in the
+  // progress of being loaded can not be unloaded.
+  function unloadItemGrabResultShape(itemGrabResultShape: ItemGrabResultShape) : void {
+    const index = root._loadedItemGrabResultShapes.indexOf(itemGrabResultShape)
+    if (index < 0) {
+      console.warn("Unable to unload itemGrabResultShape shape. Shape not
+                    found, has it already been unloaded?");
+      return;
+    }
+    const removedItemGrabResultShapes = root._loadedItemGrabResultShapes.splice(index, 1);
+    for (let removedItemGrabResultShape of removedItemGrabResultShapes) {
+      removedItemGrabResultShape.destroy();
+    }
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Start private impl
+  //////////////////////////////////////////////////////////////////////////////
+
+  property var _animationObj;
+
   component ItemGrabResultShape: QtQ.QtObject {
     // We must hold onto ItemGrabResult reference otherwise the image will
     // become invalid. Unfortunatly this is impossible due to:
@@ -120,7 +327,7 @@ QtQ.Canvas {
   property list<int> _lastRenderIntervals: []
   function _requestNextAnimationFrame(cb: var) : void {
     root.requestAnimationFrame(function onFrame(time) {
-      const requested_frame_interval = Math.floor(1000 / root.maxFps);
+      const requested_frame_interval = root.maxFps > 0 ? Math.floor(1000 / root.maxFps) : 0;
       const lastFrameTime = root._lastFrameTime
       const noPreviousRender = lastFrameTime === null;
       if (!noPreviousRender && lastFrameTime + requested_frame_interval  > time) {
@@ -449,173 +656,5 @@ QtQ.Canvas {
       canvas: canvas,
       promise: prom
     };
-  }
-
-  // Options
-  property int particleCount: 50;
-  property real angle: 90;
-  property real spread: 45;
-  property real startVelocity: 45;
-  property real decay: 0.9;
-  property real gravity: 1;
-  property real drift: 0;
-  property list<QtQ.color> colors: [
-    Qt.color('#26ccff'),
-    Qt.color('#a25afd'),
-    Qt.color('#ff5e7e'),
-    Qt.color('#88ff5a'),
-    Qt.color('#fcff42'),
-    Qt.color('#ffa62d'),
-    Qt.color('#ff36ff')
-  ];
-  property int ticks: 200;
-  property list<string> shapes: ['square', 'circle'];
-  property real scalar: 1;
-  property bool flat: false;
-  property QtQ.point origin: Qt.point(0.5, 0.5);
-  property real maxFps: 60
-  property int averageFpsSamples: root.maxFps
-  readonly property real currentFPS: {
-    if (root._lastRenderIntervals.length <= 0) {
-      return Nan;
-    }
-    const lastRenderInterval = root._lastRenderIntervals[0];
-    if (lastRenderInterval === 0) {
-      return Number.Infinity;
-    }
-    return 1000 / lastRenderInterval;
-  }
-  readonly property real averageFPS: {
-    const sampleCount = root._lastRenderIntervals.length
-    if (sampleCount <= 0) {
-      return NaN
-    }
-    const meanRenderInterval = root._lastRenderIntervals.reduce(function (sum, value) {
-        return sum + value;
-    }, 0) / sampleCount;
-
-    if (meanRenderInterval === 0) {
-      return 0;
-    }
-    return 1000 / meanRenderInterval;
-  }
-
-  // Internal properties
-  property var animationObj;
-
-  function fire(options: var, done: var) : var {
-    const particleCount = root._prop(options, 'particleCount', root._onlyPositiveInt);
-    const angle = root._prop(options, 'angle', Number);
-    const spread = root._prop(options, 'spread', Number);
-    const startVelocity = root._prop(options, 'startVelocity', Number);
-    const decay = root._prop(options, 'decay', Number);
-    const gravity = root._prop(options, 'gravity', Number);
-    const drift = root._prop(options, 'drift', Number);
-    const colors = root._prop(options, 'colors', root._varToColor);
-    const ticks = root._prop(options, 'ticks', Number);
-    const shapes = root._prop(options, 'shapes');
-    const scalar = root._prop(options, 'scalar', Number);
-    const flat = !!root._prop(options, 'flat');
-    const origin = root._prop(options, 'origin');
-
-    const fettis = [];
-    const startPos = Qt.point(root.width * origin.x,
-                              root.height * origin.y);
-
-    for (let i = 0; i < particleCount; i++) {
-      fettis.push(
-        root._randomPhysics({
-          x: startPos.x,
-          y: startPos.y,
-          angle: angle,
-          spread: spread,
-          startVelocity: startVelocity,
-          color: colors[root._randomInt(0, colors.length)],
-          shape: shapes[root._randomInt(0, shapes.length)],
-          ticks: ticks,
-          decay: decay,
-          gravity: gravity,
-          drift: drift,
-          scalar: scalar,
-          flat: flat
-        })
-      );
-    }
-
-    // if we have a previous canvas already animating,
-    // add to it
-    if (root.animationObj) {
-      return root.animationObj.addFettis(fettis);
-    }
-
-    function _done() {
-      root.animationObj = null;
-      if (done) {
-        done();
-      }
-    }
-
-    root.animationObj = root._animate(fettis, _done);
-    return root.animationObj.promise;
-  }
-
-  // Provided an "ItemGrabResult" this method will load the image into the
-  // canvas so that it can be rendered and then either call the
-  // "onLoadedCallback" or "onLoadFailedCallback" depending on whether the
-  // image loaded successfully.
-  //
-  // "onLoadedCallback" will return a "ItemGrabResultShape" that can be passed
-  // into the "shapes" array property and unloaded by calling
-  // "unloadItemGrabResultShape".
-  //
-  // "onLoadFailedCallback" will return the original "itemGrabResult" if the
-  // canvas fails to load the image successfully.
-  function loadItemGrabResultAsShape(itemGrabResult: QtQ.QtObject,
-                                     size: QtQ.size,
-                                     onLoadedCallback: var,
-                                     onLoadFailedCallback: var) : void {
-    const scale = 1;
-    const loadingItemGrabResultShape = itemGrabResultShapeComponent.createObject(root, {
-      itemGrabResult: itemGrabResult,
-      url: itemGrabResult.url,
-      size: size,
-      matrix: root._DOMMatrixtoMatrix4x4(scale, 0, 0, scale, -width * scale / 2, -height * scale / 2),
-      onLoadedCallback: onLoadedCallback,
-      onLoadFailedCallback: onLoadFailedCallback,
-    })
-    if (loadingItemGrabResultShape) {
-      const canvas = root;
-      root._loadingItemGrabResultShapes.push(loadingItemGrabResultShape);
-      canvas.loadImage(loadingItemGrabResultShape.itemGrabResult.url);
-
-      // Canvas.imageLoaded is not emitted if the image was loaded immediantly
-      // so manually call "onImageLoaded" in that case.
-      // See this bug for details:
-      // https://bugreports.qt.io/browse/QTBUG-128480
-      if (canvas.isImageLoaded(loadingItemGrabResultShape.itemGrabResult.url)) {
-        root._canvasConnections.onImageLoaded();
-      }
-    }
-  }
-
-  // This method will release the "ItemGrabResultShape" reference held
-  // internally for "loadItemGrabResultAsShape" calls that completed
-  // successfully.
-  //
-  // The provided "ItemGrabResultShape" value should only be a
-  // "ItemGrabResultShape" reference that was returned from the
-  // "onLoadedCallback" of "loadItemGrabResultAsShape". Images that are in the
-  // progress of being loaded can not be unloaded.
-  function unloadItemGrabResultShape(itemGrabResultShape: ItemGrabResultShape) : void {
-    const index = root._loadedItemGrabResultShapes.indexOf(itemGrabResultShape)
-    if (index < 0) {
-      console.warn("Unable to unload itemGrabResultShape shape. Shape not
-                    found, has it already been unloaded?");
-      return;
-    }
-    const removedItemGrabResultShapes = root._loadedItemGrabResultShapes.splice(index, 1);
-    for (let removedItemGrabResultShape of removedItemGrabResultShapes) {
-      removedItemGrabResultShape.destroy();
-    }
   }
 }
