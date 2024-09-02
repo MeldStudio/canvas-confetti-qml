@@ -115,37 +115,22 @@ QtQ.Canvas {
     }
   }
 
-  readonly property var _raf: (function () {
-    const TIME = Math.floor(1000 / 60);
-    let frame, cancel;
-    const frames = {};
-    let lastFrameTime = 0;
-
-    const canvas = root;
-    frame = function (cb) {
-      const id = Math.random();
-
-      frames[id] = canvas.requestAnimationFrame(function onFrame(time) {
-        if (lastFrameTime === time || lastFrameTime + TIME - 1 < time) {
-          lastFrameTime = time;
-          delete frames[id];
-
-          cb();
-        } else {
-          frames[id] = canvas.requestAnimationFrame(onFrame);
-        }
-      });
-
-      return id;
-    };
-    cancel = function (id) {
-      if (frames[id]) {
-        canvas.cancelRequestAnimationFrame(frames[id]);
+  // Time of last render in milliseconds.
+  property var _lastFrameTime: 0
+  function _requestNextAnimationFrame(cb: var) : void {
+    root.requestAnimationFrame(function onFrame(time) {
+      const requested_frame_interval = Math.floor(1000 / root.maxFps);
+      if (root._lastFrameTime + requested_frame_interval  > time) {
+        // If it is not yet time to render then request another animation frame.
+        root.requestAnimationFrame(onFrame);
+        return;
       }
-    };
 
-    return { frame: frame, cancel: cancel };
-  }());
+      // Else perform the requested callback.
+      root._lastFrameTime = time;
+      cb();
+    });
+  }
 
   // Applies the "transform" function to "val" if provided, otherwise just
   // returns "val" as is.
@@ -411,12 +396,11 @@ QtQ.Canvas {
 
     const canvas = root;
     const context = canvas.getContext('2d');
-    let animationFrame = null;
     let destroy = null;
 
     var prom = new Promise(function (resolve) {
       function onDone() {
-        animationFrame = destroy = null;
+        destroy = null;
 
         context.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -432,13 +416,13 @@ QtQ.Canvas {
         _drawScene(context, animatingFettis, Qt.size(canvas.width, canvas.height));
 
         if (animatingFettis.length) {
-          animationFrame = root._raf.frame(update);
+          root._requestNextAnimationFrame(update);
         } else {
           onDone();
         }
       }
 
-      animationFrame = root._raf.frame(update);
+      root._requestNextAnimationFrame(update);
       destroy = onDone;
     });
 
@@ -448,16 +432,7 @@ QtQ.Canvas {
         return prom;
       },
       canvas: canvas,
-      promise: prom,
-      reset: function () {
-        if (animationFrame) {
-          root._raf.cancel(animationFrame);
-        }
-
-        if (destroy) {
-          destroy();
-        }
-      }
+      promise: prom
     };
   }
 
@@ -483,6 +458,7 @@ QtQ.Canvas {
   property real scalar: 1;
   property bool flat: false;
   property QtQ.point origin: Qt.point(0.5, 0.5);
+  property real maxFps: 60
 
   // Internal properties
   property var animationObj;
