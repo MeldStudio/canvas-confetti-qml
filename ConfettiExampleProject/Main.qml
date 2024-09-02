@@ -196,7 +196,7 @@ Window {
   }
   ////////////////////////////////////////////////////////////////////////////
 
-  Confetti.ConfettiCavnas {
+  Confetti.ConfettiCanvas {
     id: confetti;
 
     anchors.fill: root.contentItem;

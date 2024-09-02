@@ -3,7 +3,7 @@ qt_add_qml_module(confetti
   URI "Confetti"
   VERSION 1.0
   QML_FILES
-    ConfettiCavnas.qml
+    ConfettiCanvas.qml
   RESOURCE_PREFIX /Confetti/
 
   # Compile qml files (listed in QML_FILES) to C++ using qmltc and add these
