@@ -79,39 +79,38 @@ Window {
   function emoji() : void {
     // Step 2: Use QML's Item.grabToImage method to get the item as a image.
     textShapeSource.grabToImage(function(itemGrabResult) {
+      function onLoadedCallback(itemGrabResultShape) {
+        // Step 5: Optionally unload the image if it is no longer
+        // required. You must unload any images you load as otherwise
+        // confetti will retain a reference to them internally.
+        function unloadImageGrabResultShape() {
+          confetti.unloadItemGrabResultShape(itemGrabResultShape);
+        }
 
-    function onLoadedCallback(itemGrabResultShape) {
-      // Step 5: Optionally unload the image if it is no longer
-      // required. You must unload any images you load as otherwise
-      // confetti will retain a reference to them internally.
-      function unloadImageGrabResultShape() {
-        confetti.unloadItemGrabResultShape(itemGrabResultShape);
+        // Step 4: Create teh confetti effect using the provided
+        // "itemGrabResultShape" as the shape.
+        confetti.fire({
+          spread: 360,
+          ticks: 60,
+          gravity: 0,
+          origin: Qt.point(0.5, 0.5),
+          decay: 0.96,
+          startVelocity: 20,
+          shapes: [itemGrabResultShape],
+        }).then(unloadImageGrabResultShape, unloadImageGrabResultShape);
       }
 
-      // Step 4: Create teh confetti effect using the provided
-      // "itemGrabResultShape" as the shape.
-      confetti.fire({
-        spread: 360,
-        ticks: 60,
-        gravity: 0,
-        origin: Qt.point(0.5, 0.5),
-        decay: 0.96,
-        startVelocity: 20,
-        shapes: [itemGrabResultShape],
-      }).then(unloadImageGrabResultShape, unloadImageGrabResultShape);
-    }
+      function onLoadFailedCallback(itemGrabResult) {
+        console.warn("Confetti failed to load ItemGrabResult as shape.");
+      }
 
-    function onLoadFailedCallback(itemGrabResult) {
-      console.warn("Confetti failed to load ItemGrabResult as shape.");
-    }
-
-    // Step 3: Use "loadItemGrabResultAsShape" to asynchronously load
-    // the image into the canvas so that it can rendered.
-    const itemSize = Qt.size(textShapeSource.width, textShapeSource.height);
-    confetti.loadItemGrabResultAsShape(itemGrabResult,
-                                       itemSize,
-                                       onLoadedCallback,
-                                       onLoadFailedCallback);
+      // Step 3: Use "loadItemGrabResultAsShape" to asynchronously load
+      // the image into the canvas so that it can rendered.
+      const itemSize = Qt.size(textShapeSource.width, textShapeSource.height);
+      confetti.loadItemGrabResultAsShape(itemGrabResult,
+                                         itemSize,
+                                         onLoadedCallback,
+                                         onLoadFailedCallback);
     })
   }
   ////////////////////////////////////////////////////////////////////////////

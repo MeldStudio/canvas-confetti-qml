@@ -196,22 +196,25 @@ QtQ.Canvas {
       itemGrabResult: itemGrabResult,
       url: itemGrabResult.url,
       size: size,
-      matrix: root._DOMMatrixtoMatrix4x4(scale, 0, 0, scale, -width * scale / 2, -height * scale / 2),
+      matrix: root._convertDOMMatrixtoMatrix4x4(scale, 0, 0, scale, -width * scale / 2, -height * scale / 2),
       onLoadedCallback: onLoadedCallback,
       onLoadFailedCallback: onLoadFailedCallback,
     })
-    if (loadingItemGrabResultShape) {
-      const canvas = root;
-      root._loadingItemGrabResultShapes.push(loadingItemGrabResultShape);
-      canvas.loadImage(loadingItemGrabResultShape.itemGrabResult.url);
 
-      // Canvas.imageLoaded is not emitted if the image was loaded immediantly
-      // so manually call "onImageLoaded" in that case.
-      // See this bug for details:
-      // https://bugreports.qt.io/browse/QTBUG-128480
-      if (canvas.isImageLoaded(loadingItemGrabResultShape.itemGrabResult.url)) {
-        root._canvasConnections.onImageLoaded();
-      }
+    if (!loadingItemGrabResultShape) {
+      console.log("Failed to create ItemGrabResultShape: " + itemGrabResultShapeComponent.errorString)
+      return;
+    }
+
+    root._loadingItemGrabResultShapes.push(loadingItemGrabResultShape);
+    root.loadImage(loadingItemGrabResultShape.itemGrabResult.url);
+
+    // Canvas.imageLoaded is not emitted if the image was loaded immediantly
+    // so manually call "onImageLoaded" in that case.
+    // See this bug for details:
+    // https://bugreports.qt.io/browse/QTBUG-128480
+    if (root.isImageLoaded(loadingItemGrabResultShape.itemGrabResult.url)) {
+      root._canvasConnections.onImageLoaded();
     }
   }
 
@@ -226,8 +229,8 @@ QtQ.Canvas {
   function unloadItemGrabResultShape(itemGrabResultShape: ItemGrabResultShape) : void {
     const index = root._loadedItemGrabResultShapes.indexOf(itemGrabResultShape)
     if (index < 0) {
-      console.warn("Unable to unload itemGrabResultShape shape. Shape not
-                    found, has it already been unloaded?");
+      console.warn("Unable to unload itemGrabResultShape shape. Shape not" +
+                   "found, has it already been unloaded?");
       return;
     }
     const removedItemGrabResultShapes = root._loadedItemGrabResultShapes.splice(index, 1);
@@ -257,7 +260,7 @@ QtQ.Canvas {
     required property url url
 
     // The size to render the provided image.
-    required property size size
+    required property QtQ.size size
 
     required property QtQ.matrix4x4 matrix
 
@@ -395,17 +398,18 @@ QtQ.Canvas {
   }
 
   // DOMMatrix style 6-element array values to Qt matrix4x4.
-  function _DOMMatrixtoMatrix4x4(a: real, b: real, c: real, d: real, e: real, f: real) : QtQ.matrix4x4 {
+  // "e_" instead of "e" as qmltc will internally create a variable "e" for the engine...
+  function _convertDOMMatrixtoMatrix4x4(a: real, b: real, c: real, d: real, e_: real, f: real) : QtQ.matrix4x4 {
     return Qt.matrix4x4(
       a, b, 0, 0,
       c, d, 0, 0,
       0, 0, 1, 0,
-      e, f, 0, 1
+      e_, f, 0, 1
     )
   }
 
   // Qt matrix4x4 to DOMMatrix style 6-element array.
-  function _Matrix4x4ToDOMMatrix(m: QtQ.matrix4x4) : var {
+  function _convertMatrix4x4ToDOMMatrix(m: QtQ.matrix4x4) : var {
     return [m.m11, m.m12, m.m21, m.m22, m.m41, m.m42]
   }
 
