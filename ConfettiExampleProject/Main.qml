@@ -12,6 +12,87 @@ Window {
 
   color: "#131313";
 
+  ////////////////////////////////////////////////////////////////////////////
+  // Example method for how fire "confetti".
+  // Left click canvas to trigger.
+  ////////////////////////////////////////////////////////////////////////////
+
+  function fireConfetti(origin: point) : void {
+    const count = 200;
+    const params = {
+      "particles": 100,
+      "spread": 70,
+      "origin": origin
+    };
+    confetti.fire(params);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  // Example method for how fire "confetti" with a more realistic look.
+  // Control + Left click click canvas to trigger.
+  ////////////////////////////////////////////////////////////////////////////
+
+  function fireConfettiRealistic(origin: point) : void {
+    const count = 200;
+    const defaults = {
+      "origin": origin
+    }
+
+    function fire(particleRatio, opts) {
+      const params = Object.assign({"particleCount": Math.floor(count * particleRatio)}, defaults, opts);
+      confetti.fire(params);
+    }
+
+    fire(0.25, {
+      "spread": 26,
+      "startVelocity": 55
+    });
+    fire(0.2, {
+      "spread": 60,
+    });
+    fire(0.35, {
+      "spread": 100,
+      "decay": 0.91,
+      "scalar": 0.8
+    });
+    fire(0.1, {
+      "spread": 120,
+      "startVelocity": 25,
+      "decay": 0.92,
+      "scalar": 1.2
+    });
+    fire(0.1, {
+      "spread": 120,
+      "startVelocity": 45
+    });
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  // Example method for how fire "confetti" star shapes.
+  // Shift + Left click canvas to trigger.
+  ////////////////////////////////////////////////////////////////////////////
+
+  function fireConfettiStars(origin: point) : void {
+    const count = 200;
+    const params = {
+      "particles": 100,
+      "spread": 360,
+      "ticks": 50,
+      "gravity": 0,
+      "decay": 0.94,
+      "startVelocity": 30,
+      "origin": origin,
+      "shapes": ['star'],
+      "colors": ['#FFE400', '#FFBD00', '#E89400', '#FFCA6C', '#FDFFB8']
+    };
+    confetti.fire(params);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
+  // Example method for how to cause "confetti" to fall down from the top like snow.
+  // Right click canvas to trigger.
+  ////////////////////////////////////////////////////////////////////////////
+
   function snow() {
     var duration = 15 * 1000;
     var animationEnd = Date.now() + duration;
@@ -61,7 +142,7 @@ Window {
 
   ////////////////////////////////////////////////////////////////////////////
   // Example method for how to "confetti" emoji icons.
-  // Right click canvas to trigger.
+  // Middle click canvas to trigger.
   ////////////////////////////////////////////////////////////////////////////
 
   // Step 1: Create a text item displaying the required emoji.
@@ -76,7 +157,7 @@ Window {
     text: "🦄";
   }
 
-  function emoji() : void {
+  function emoji(origin: point) : void {
     // Step 2: Use QML's Item.grabToImage method to get the item as a image.
     textShapeSource.grabToImage(function(itemGrabResult) {
       function onLoadedCallback(itemGrabResultShape) {
@@ -93,7 +174,7 @@ Window {
           spread: 360,
           ticks: 60,
           gravity: 0,
-          origin: Qt.point(0.5, 0.5),
+          origin: origin,
           decay: 0.96,
           startVelocity: 20,
           shapes: [itemGrabResultShape],
@@ -143,48 +224,30 @@ Window {
       acceptedButtons: Qt.AllButtons;
 
       onPressed: event => {
+        const origin = Qt.point(event.x / confetti.width, event.y / confetti.height)
+
+        if (event.button === Qt.LeftButton) {
+          if (event.modifiers & Qt.ControlModifier) {
+            root.fireConfettiRealistic(origin);
+            return;
+          }
+          if (event.modifiers & Qt.ShiftModifier) {
+            root.fireConfettiStars(origin);
+            return;
+          }
+          root.fireConfetti(origin);
+          return;
+        }
+
         if (event.button === Qt.RightButton) {
           root.snow();
           return;
         }
 
         if (event.button === Qt.MiddleButton) {
-          root.emoji();
+          root.emoji(origin);
           return;
         }
-
-        const count = 200;
-        const defaults = {
-          "origin": Qt.point(event.x / confetti.width, event.y / confetti.height)
-        }
-
-        function fire(particleRatio, opts) {
-          const params = Object.assign({"particleCount": Math.floor(count * particleRatio)}, defaults, opts);
-          confetti.fire(params);
-        }
-
-        fire(0.25, {
-          "spread": 26,
-          "startVelocity": 55
-        })
-        fire(0.2, {
-          "spread": 60,
-        })
-        fire(0.35, {
-          "spread": 100,
-          "decay": 0.91,
-          "scalar": 0.8
-        })
-        fire(0.1, {
-          "spread": 120,
-          "startVelocity": 25,
-          "decay": 0.92,
-          "scalar": 1.2
-        })
-        fire(0.1, {
-          "spread": 120,
-          "startVelocity": 45
-        })
       }
     }
   }

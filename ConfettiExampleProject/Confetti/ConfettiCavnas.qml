@@ -506,7 +506,7 @@ QtQ.Canvas {
                           y1: real,
                           x2: real,
                           y2: real) : void {
-    const rot = Math.PI / 2 * 3;
+    let rot = Math.PI / 2 * 3;
     const innerRadius = 4 * fetti.scalar;
     const outerRadius = 8 * fetti.scalar;
     let x = fetti.x;
