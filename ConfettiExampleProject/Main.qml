@@ -1,5 +1,7 @@
 import QtQuick
 
+import Confetti as Confetti
+
 Window {
   id: root;
 
@@ -114,7 +116,7 @@ Window {
   }
   ////////////////////////////////////////////////////////////////////////////
 
-  Confetti {
+  Confetti.ConfettiCavnas {
     id: confetti;
 
     anchors.fill: root.contentItem;
