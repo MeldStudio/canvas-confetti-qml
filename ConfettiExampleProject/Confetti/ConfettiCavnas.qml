@@ -38,12 +38,28 @@ QtQ.Canvas {
   // The number of new fetti objects to create on each "fire" call.
   property int particleCount: 50;
 
-  // Various properties to control the behavour of the confetti simulation.
+  // The angle in which to launch the confetti, in degrees. 90 is straight up.
   property real angle: 90;
+
+  // How far off center the confetti can go, in degrees. 45 means the confetti
+  // will launch at the defined angle plus or minus 22.5 degrees.
   property real spread: 45;
+
+  // How fast the confetti will start going, in pixels.
   property real startVelocity: 45;
+
+  // How quickly the confetti will lose speed. Keep this number between 0 and 1,
+  // otherwise the confetti will gain speed.
   property real decay: 0.9;
+
+  // How quickly the particles are pulled down. 1 is full gravity, 0.5 is half
+  // gravity, etc., but there are no limits. You can even make particles go up
+  // if you'd like.
   property real gravity: 1;
+
+  // How much to the side the confetti will drift. The default is 0, meaning
+  // that they will fall straight down. Use a negative number for left and
+  // positive number for right.
   property real drift: 0;
 
   // A list of colors that will be used when creating the fetti objects. A new
@@ -73,6 +89,9 @@ QtQ.Canvas {
   // A factor that will scale the size of the fetti objects uniformly.
   property real scalar: 1;
 
+  // Optionally turns off the tilt and wobble that three dimensional confetti
+  // would have in the real world. Yeah, they look a little sad, but y'all asked
+  // for them, so don't blame me.
   property bool flat: false;
 
   // The default origin for fetti objects to be created at. This position is
