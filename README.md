@@ -2,6 +2,8 @@
 
 <img src="./images/banner.gif"/>
 
+Single file QML component for canvas based confetti animations.
+
 Fork of [catdad/canvas-confetti](https://github.com/catdad/canvas-confetti) but
 rewritten to support Qt's QML.
 
@@ -14,6 +16,11 @@ Main changes from above are:
 - Removes unsupported path `'path'` and `'bitmap'` shape types (both use cases
   covered by new `ItemGrabResultShape` type).
 
+## How to use:
+
+Just import `/ConfettiExampleProject/Confetti/ConfettiCanvas.qml` into your
+project as a QML source and your away!
+
 ## Examples
 
 > Build the project in QtCreator to see more examples like emoji, Item or star
@@ -24,7 +31,7 @@ First create a `ConfettiCanvas` with:
 ```qml
 import Confetti as Confetti
 
-Confetti.ConfettiCavnas {
+Confetti.ConfettiCanvas {
   id: confetti
 }
 ```
