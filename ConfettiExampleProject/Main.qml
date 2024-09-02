@@ -8,7 +8,7 @@ Window {
   width: 640;
   height: 480;
   visible: true;
-  title: qsTr("Confetti");
+  title: qsTr("Confetti Examples App");
 
   color: "#131313";
 
@@ -20,9 +20,9 @@ Window {
   function fireConfetti(origin: point) : void {
     const count = 200;
     const params = {
-      "particles": 100,
-      "spread": 70,
-      "origin": origin
+      particles: 100,
+      spread: 70,
+      origin: origin
     };
     confetti.fire(params);
   }
@@ -35,7 +35,7 @@ Window {
   function fireConfettiRealistic(origin: point) : void {
     const count = 200;
     const defaults = {
-      "origin": origin
+      origin: origin
     }
 
     function fire(particleRatio, opts) {
@@ -44,26 +44,26 @@ Window {
     }
 
     fire(0.25, {
-      "spread": 26,
-      "startVelocity": 55
+      spread: 26,
+      startVelocity: 55
     });
     fire(0.2, {
-      "spread": 60,
+      spread: 60,
     });
     fire(0.35, {
-      "spread": 100,
-      "decay": 0.91,
-      "scalar": 0.8
+      spread: 100,
+      decay: 0.91,
+      scalar: 0.8
     });
     fire(0.1, {
-      "spread": 120,
-      "startVelocity": 25,
-      "decay": 0.92,
-      "scalar": 1.2
+      spread: 120,
+      startVelocity: 25,
+      decay: 0.92,
+      scalar: 1.2
     });
     fire(0.1, {
-      "spread": 120,
-      "startVelocity": 45
+      spread: 120,
+      startVelocity: 45
     });
   }
 
@@ -75,15 +75,15 @@ Window {
   function fireConfettiStars(origin: point) : void {
     const count = 200;
     const params = {
-      "particles": 100,
-      "spread": 360,
-      "ticks": 50,
-      "gravity": 0,
-      "decay": 0.94,
-      "startVelocity": 30,
-      "origin": origin,
-      "shapes": ['star'],
-      "colors": ['#FFE400', '#FFBD00', '#E89400', '#FFCA6C', '#FDFFB8']
+      particles: 100,
+      spread: 360,
+      ticks: 50,
+      gravity: 0,
+      decay: 0.94,
+      startVelocity: 30,
+      origin: origin,
+      shapes: ['star'],
+      colors: ['#FFE400', '#FFBD00', '#E89400', '#FFCA6C', '#FDFFB8']
     };
     confetti.fire(params);
   }
@@ -93,7 +93,7 @@ Window {
   // Right click canvas to trigger.
   ////////////////////////////////////////////////////////////////////////////
 
-  function snow() {
+  function showerConfetti() {
     var duration = 15 * 1000;
     var animationEnd = Date.now() + duration;
     var skew = 1;
@@ -204,19 +204,50 @@ Window {
     renderStrategy: Canvas.Threaded;
 
     Column {
-      anchors.top: parent.top;
-      anchors.left: parent.left;
+      anchors.top: confetti.top;
+      anchors.left: confetti.left;
       anchors.margins: 10;
+      opacity: 0.3
+      Text {
+        text: "Debug info:";
+        font.pixelSize: 12;
+        color: "white";
+      }
+      Text {
+        text: "Animating Confetti: " + confetti.animatingConfetti;
+        font.pixelSize: 12;
+        color: "white";
+      }
       Text {
         text: "Current FPS: " + confetti.currentFPS.toFixed(2);
-        font.pixelSize: 20;
+        font.pixelSize: 12;
         color: "white";
       }
       Text {
         text: "Average FPS: " + confetti.averageFPS.toFixed(2);
-        font.pixelSize: 20;
+        font.pixelSize: 12;
         color: "white";
       }
+    }
+
+    Text {
+      text: "# Instructions:\n" +
+            "`Left click` = Simple confetti\n\n" +
+            "`Control + Left click` = Realistic confetti\n\n" +
+            "`Shift + Left click` = Star confetti\n\n" +
+            "`Right click` = Shower confetti\n\n" +
+            "`Middle click` = Emoji confetti\n\n";
+      textFormat: Text.MarkdownText
+      font.pixelSize: 12;
+      color: "white";
+      opacity: confetti.animatingConfetti ? 0.3 : 0.8
+      Behavior on opacity {
+        NumberAnimation {
+          duration: 200
+          easing.type: Easing.InOutSine
+        }
+      }
+      anchors.centerIn: confetti
     }
 
     MouseArea {
@@ -240,7 +271,7 @@ Window {
         }
 
         if (event.button === Qt.RightButton) {
-          root.snow();
+          root.showerConfetti();
           return;
         }
 

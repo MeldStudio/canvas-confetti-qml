@@ -79,6 +79,9 @@ QtQ.Canvas {
   // relative to the canvas size.
   property QtQ.point origin: Qt.point(0.5, 0.5);
 
+  // Try if there are fetti still alive to be animated.
+  readonly property bool animatingConfetti: !!root._animationObj
+
   // Set to limit the FPS to a given value. If set to zero then rendering will
   // not be capped.
   property real maxFps: 60
