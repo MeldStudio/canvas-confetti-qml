@@ -4,22 +4,29 @@
 
 Single file QML component for canvas based confetti animations.
 
-Fork of [catdad/canvas-confetti](https://github.com/catdad/canvas-confetti) but
+Import `ConfettiCanvas.qml` into your project, create a `Confetti.ConfettiCanvas` and
+call `fire` make confetti appear!
+
+## Based on the well known canvas-confetti JS module!
+This library is is based on [catdad/canvas-confetti](https://github.com/catdad/canvas-confetti) but
 rewritten to support Qt's QML.
 
 Main changes from above are:
 - Converted from JS module to QML canvas component.
-- QML does not support `WebWorkers` so removes worker logic.
-- Adds QML type hints and refactors to make API more declarative.
+- Refactors the API for a more declarative QML experience.
+- Adds QML typing and support for QML -> C++ compilation via Qt's [QML type compiler](https://doc.qt.io/qt-6/qtqml-qml-type-compiler.html).
 - Includes support for Item based confetti by using `ItemGrabResult` and
   `loadItemGrabResultAsShape`.
 - Removes unsupported path `'path'` and `'bitmap'` shape types (both use cases
   covered by new `ItemGrabResultShape` type).
+- Removes `WebWorkers` logic as not supported by QML.
 
 ## How to use:
 
-Just import `/ConfettiExampleProject/Confetti/ConfettiCanvas.qml` into your
-project as a QML source and your away!
+Just import [ConfettiCanvas.qml](https://github.com/MeldStudio/canvas-confetti-qml/blob/main/ConfettiExampleProject/Confetti/ConfettiCanvas.qml) into your
+project as a QML source and your away! Or import the whole `/ConfettiExampleProject/Confetti/`
+CMake library into your source tree as a CMake submodule (See `/ConfettiExampleProject/CMakeLists.txt`
+for example) if you want to keep the `Confetti` namespace when importing.
 
 ## Examples
 
@@ -69,10 +76,18 @@ confetti.fire({
 });
 ```
 
-## Known Issues
+## Known Limitations
 
-Performance in debug builds is pretty choppy but release builds work well.
-Upstream uses a [WebWorker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers)
+The aim here was to create a simple single file QML component however that does
+come with a few limitations.
+
+Performance in debug builds can be pretty choppy though release builds work
+well. Upstream uses a [WebWorker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers)
 to render in a separate thread but QML does not support this. [`WorkerScript`](https://doc.qt.io/qt-6/qml-qtqml-workerscript-workerscript.html)
-may be an alternative but I would like to keep this as a single file library if
-possible and that only supports passing a separate script.
+may be an alternative it only supports passing a separate script.
+
+For a truly performant implementation render and simulation state should be
+separated and a `QQuickPaintedItem` or a QML [ParticleSystem](https://doc.qt.io/qt-6/qml-qtquick-particles-particlesystem.html)
+would likely offer better results than a `Canvas`. It might be interesting to do
+a similar implementation using both of the above approaches to compare
+performance in the future.
